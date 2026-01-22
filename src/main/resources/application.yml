@@ -10,7 +10,7 @@ aisynapse:
   core-url: http://localhost:8080
   transport: HTTP
   debug: true
-  repository-name: Leul120/ai-synapse
+  repository-name: Leul120/test-sdk
 
 logging:
   level:
