@@ -1,0 +1,17 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: demo-app
+
+# AI-Synapse SDK Configuration
+aisynapse:
+  core-url: http://localhost:8080
+  transport: HTTP
+  debug: true
+  repository-name: Leul120/ai-synapse
+
+logging:
+  level:
+    com.aisynapse.sdk: TRACE
