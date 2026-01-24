@@ -25,6 +25,9 @@ public class SynapseClientConfig {
     @Value("${aisynapse.debug:false}")
     private boolean debug;
 
+    @Value("${aisynapse.repository-name:}")
+    private String repositoryName;
+
     @Bean
     public SynapseClient synapseClient() {
         SynapseConfig.TransportType transportType;
@@ -38,10 +41,11 @@ public class SynapseClientConfig {
                 .coreUrl(coreUrl)
                 .transport(transportType)
                 .debug(debug)
+                .repositoryName(repositoryName)
                 .httpTimeoutMs(10000)
                 .build();
 
-        log.info("AI-Synapse SDK configured: coreUrl={}", coreUrl);
+        log.info("AI-Synapse SDK configured: coreUrl={}, repositoryName={}", coreUrl, repositoryName);
         return new SynapseClient(config);
     }
 }
