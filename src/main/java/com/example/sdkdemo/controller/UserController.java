@@ -48,7 +48,7 @@ public class UserController {
     @GetMapping("/users/{id}")
     public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Long id) {
         log.info("Fetching user by id: {}", id);
-        Optional<User> user = userService.getUserById(id);
+        Optional<User> user = userService.getUserByIdWithCircuitBreaker(id);
         
         if (user.isPresent()) {
             return ResponseEntity.ok(ApiResponse.success(user.get(), "User retrieved successfully"));
@@ -214,14 +214,15 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> triggerError() {
         log.info("Triggering a deliberate error for verification");
         try {
- // Add a circuit breaker and timeout handling
- if (Math.random() < 0.1) {
- throw new RuntimeException("Simulated operation failure for testing error handling");
- }
- } catch (Exception e) {
- log.error("Error triggering deliberate error", e);
- return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
- }
+            // Add a circuit breaker and timeout handling
+            if (Math.random() < 0.1) {
+                throw new RuntimeException("Simulated operation failure for testing error handling");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Error endpoint triggered successfully", "Deliberate error test completed"));
+        } catch (Exception e) {
+            log.error("Error triggering deliberate error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
+        }
     }
 
     /**
