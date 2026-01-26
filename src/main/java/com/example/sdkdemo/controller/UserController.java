@@ -216,7 +216,12 @@ public class UserController {
         try {
  // Add a circuit breaker and timeout handling
  if (Math.random() < 0.1) {
+ try {
+ // Simulate a timeout
+ Thread.sleep(1000);
+ } catch (InterruptedException e) {
  throw new RuntimeException("Simulated operation failure for testing error handling");
+ }
  }
  } catch (Exception e) {
  log.error("Error triggering deliberate error", e);
