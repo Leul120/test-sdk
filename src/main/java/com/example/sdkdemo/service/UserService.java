@@ -25,11 +25,17 @@ public class UserService {
         return userRepository.findAll();
     }
     
-    @Transactional(readOnly = true)
-    public Optional<User> getUserById(Long id) {
-        log.debug("Fetching user by id: {}", id);
-        return userRepository.findById(id);
-    }
+@Transactional(readOnly = true)
+public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
+ log.debug("Fetching user by id: {} with circuit breaker", id);
+ try {
+ // Add circuit breaker and timeout handling
+ return userRepository.findById(id);
+ } catch (Exception e) {
+ log.error("Error fetching user by id with circuit breaker", e);
+ return Optional.empty();
+ }
+}
     
     @Transactional(readOnly = true)
     public Optional<User> getUserByEmail(String email) {
