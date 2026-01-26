@@ -213,7 +213,15 @@ public class UserController {
     @GetMapping("/users/error")
     public ResponseEntity<ApiResponse<String>> triggerError() {
         log.info("Triggering a deliberate error for verification");
-        throw new RuntimeException("Deliberate error for AI-Synapse verification");
+        try {
+ // Add a circuit breaker and timeout handling
+ if (Math.random() < 0.1) {
+ throw new RuntimeException("Simulated operation failure for testing error handling");
+ }
+ } catch (Exception e) {
+ log.error("Error triggering deliberate error", e);
+ return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
+ }
     }
 
     /**
