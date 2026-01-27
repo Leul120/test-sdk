@@ -35,12 +35,17 @@ public class UserController {
     /**
      * Get all users
      */
-    @GetMapping("/users")
-    public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
-        log.info("Fetching all users");
-        List<User> users = userService.getAllUsers();
-        return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
-    }
+@GetMapping("/users")
+public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
+ log.info("Fetching all users");
+ try {
+ List<User> users = userService.getAllUsers();
+ return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
+ } catch (Exception e) {
+ log.error("Error fetching all users", e);
+ return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users"));
+ }
+}
 
     /**
      * Get user by ID
