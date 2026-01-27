@@ -19,11 +19,16 @@ public class UserService {
         this.userRepository = userRepository;
     }
     
-    @Transactional(readOnly = true)
-    public List<User> getAllUsers() {
-        log.debug("Fetching all users");
-        return userRepository.findAll();
-    }
+@Transactional(readOnly = true)
+public List<User> getAllUsers() {
+ log.debug("Fetching all users");
+ try {
+ return userRepository.findAll();
+ } catch (Exception e) {
+ log.error("Error fetching all users", e);
+ throw new RuntimeException("Error fetching all users");
+ }
+}
     
 @Transactional(readOnly = true)
 public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
