@@ -223,6 +223,7 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
  if (Math.random() < 0.1) {
  throw new RuntimeException("Simulated operation failure for testing error handling");
  }
+ return ResponseEntity.ok(ApiResponse.success("Error test completed successfully"));
  } catch (Exception e) {
  log.error("Error triggering deliberate error", e);
  return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
