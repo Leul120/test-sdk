@@ -237,13 +237,11 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
         log.info("Attempting to create invalid user: {}", request.getEmail());
         
         // This will trigger validation errors
-        User user = User.builder()
-                .name("") // Invalid: empty name
-                .email("invalid-email") // Invalid: bad email format
-                .role("INVALID_ROLE") // Invalid: not USER or ADMIN
-                .build();
-        
-        User createdUser = userService.createUser(user);
+if (user.getName().isEmpty() || user.getEmail().isEmpty() || !user.getRole().equals("USER") && !user.getRole().equals("ADMIN")) {
+ throw new IllegalArgumentException("Invalid user data provided.");
+ }
+ 
+ User createdUser = userService.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, "User created successfully"));
     }
