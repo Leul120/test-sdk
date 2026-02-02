@@ -223,7 +223,6 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
  if (Math.random() < 0.1) {
  throw new RuntimeException("Simulated operation failure for testing error handling");
  }
- return ResponseEntity.ok(ApiResponse.success("Error test completed successfully"));
  } catch (Exception e) {
  log.error("Error triggering deliberate error", e);
  return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
@@ -238,11 +237,13 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
         log.info("Attempting to create invalid user: {}", request.getEmail());
         
         // This will trigger validation errors
-if (user.getName().isEmpty() || user.getEmail().isEmpty() || !user.getRole().equals("USER") && !user.getRole().equals("ADMIN")) {
- throw new IllegalArgumentException("Invalid user data provided.");
- }
- 
- User createdUser = userService.createUser(user);
+        User user = User.builder()
+                .name("") // Invalid: empty name
+                .email("invalid-email") // Invalid: bad email format
+                .role("INVALID_ROLE") // Invalid: not USER or ADMIN
+                .build();
+        
+        User createdUser = userService.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, "User created successfully"));
     }
