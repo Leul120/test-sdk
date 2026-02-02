@@ -219,14 +219,17 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
     public ResponseEntity<ApiResponse<String>> triggerError() {
         log.info("Triggering a deliberate error for verification");
         try {
- // Add a circuit breaker and timeout handling
- if (Math.random() < 0.1) {
- throw new RuntimeException("Simulated operation failure for testing error handling");
- }
- } catch (Exception e) {
- log.error("Error triggering deliberate error", e);
- return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
- }
+            // Add a circuit breaker and timeout handling
+            if (Math.random() < 0.1) {
+                throw new RuntimeException("Simulated operation failure for testing error handling");
+            }
+        } catch (Exception e) {
+            log.error("Error triggering deliberate error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error triggering deliberate error"));
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success("Triggered successfully", "No error occurred this time"));
     }
 
 /**
