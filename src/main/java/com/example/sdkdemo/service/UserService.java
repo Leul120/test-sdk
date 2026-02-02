@@ -19,24 +19,33 @@ public class UserService {
         this.userRepository = userRepository;
     }
     
- @Transactional(readOnly = true)
- public List<User> getAllUsers() {
+@Transactional(readOnly = true)
+public List<User> getAllUsers() {
  log.debug("Fetching all users");
- return userService.getAllUsersFromService();
+ try {
+ return userRepository.findAll();
+ } catch (Exception e) {
+ log.error("Error fetching all users", e);
+ throw new RuntimeException("Error fetching all users");
  }
-
- @Transactional(readOnly = true)
- public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
+}
+    
+@Transactional(readOnly = true)
+public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
  log.debug("Fetching user by id: {} with circuit breaker", id);
- return userService.getUserByIdFromService(id);
+ try {
+ // Add circuit breaker and timeout handling
+ return userRepository.findById(id);
+ } catch (Exception e) {
+ log.error("Error fetching user by id with circuit breaker", e);
+ return Optional.empty();
  }
-
- @Transactional(readOnly = true)
- public Optional<User> getUserByEmail(String email) {
- log.debug("Fetching user by email: {}", email);
- return userService.getUserByEmailFromService(email);
- }
-
+}
+    
+    @Transactional(readOnly = true)
+    public Optional<User> getUserByEmail(String email) {
+        log.debug("Fetching user by email: {}", email);
+        return userRepository.findByEmail(email);
     }
     
     @Transactional
