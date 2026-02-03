@@ -32,6 +32,9 @@ public List<User> getAllUsers() {
     
 @Transactional(readOnly = true)
 public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
+    // Add circuit breaker and timeout handling
+    return userRepository.findById(id).circleBreaker();
+}
  log.debug("Fetching user by id: {} with circuit breaker", id);
  try {
  // Add circuit breaker and timeout handling
