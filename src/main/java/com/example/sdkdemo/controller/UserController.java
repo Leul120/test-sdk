@@ -331,45 +331,53 @@ public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validat
     /**
      * Endpoint to test HTTP status codes
      */
-    @GetMapping("/users/http-status/{statusCode}")
-    public ResponseEntity<ApiResponse<String>> testHttpStatusCodes(@PathVariable int statusCode) {
-        log.info("Testing HTTP status code: {}", statusCode);
-        
-        switch (statusCode) {
-            case 400:
-                return ResponseEntity.badRequest().body(ApiResponse.error("Bad Request - Invalid input"));
-            case 401:
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Unauthorized - Authentication required"));
-            case 403:
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("Forbidden - Access denied"));
-            case 404:
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Not Found - Resource does not exist"));
-            case 405:
-                return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                        .body(ApiResponse.error("Method Not Allowed"));
-            case 409:
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(ApiResponse.error("Conflict - Resource conflict"));
+// ... truncated for brevity ...
+catch (RuntimeException e) {
+log.error("RuntimeException caught", e);
+return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+.body(ApiResponse.error("RUNTIME_ERROR: " + e.getMessage()));
+}
+/**
+* Endpoint to test HTTP status codes
+*/
+@GetMapping("/users/http-status/{statusCode}")
+public ResponseEntity<ApiResponse<String>> testHttpStatusCodes(@PathVariable int statusCode) {
+log.info("Testing HTTP status code: ", statusCode);
+switch (statusCode) {
+case 400:
+return ResponseEntity.badRequest().body(ApiResponse.error("Bad Request - Invalid input"));
+case 401:
+return ResponseEntity.status(HttpStatus.UNAUTHORIZED) 
+.body(ApiResponse.error("Unauthorized - Authentication required"));
+case 403:
+return ResponseEntity.status(HttpStatus.FORBIDDEN) 
+.body(ApiResponse.error("Forbidden - Access denied"));
+case 404:
+return ResponseEntity.status(HttpStatus.NOT_FOUND) 
+.body(ApiResponse.error("Not Found - Resource does not exist"));
+case 405:
+return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED) 
+.body(ApiResponse.error("Method Not Allowed"));
+case 409:
+return ResponseEntity.status(HttpStatus.CONFLICT) 
+.body(ApiResponse.error("Conflict - Resource conflict"));
 case 422:
-return ResponseEntity.ok()
+return ResponseEntity.ok() 
 .body(ApiResponse.success("Status code 422 test successful", "Test completed"));
-            case 429:
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(ApiResponse.error("Too Many Requests - Rate limit exceeded"));
-            case 500:
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(ApiResponse.error("Internal Server Error"));
-            case 502:
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                        .body(ApiResponse.error("Bad Gateway"));
-            case 503:
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(ApiResponse.error("Service Unavailable"));
-            default:
-                return ResponseEntity.ok(ApiResponse.success("Status code " + statusCode + " test successful", "Test completed"));
-        }
-    }
+case 429:
+return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS) 
+.body(ApiResponse.error("Too Many Requests - Rate limit exceeded"));
+case 500:
+return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR) 
+.body(ApiResponse.error("Internal Server Error"));
+case 502:
+return ResponseEntity.status(HttpStatus.BAD_GATEWAY) 
+.body(ApiResponse.error("Bad Gateway"));
+case 503:
+return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE) 
+.body(ApiResponse.error("Service Unavailable"));
+default:
+return ResponseEntity.ok(ApiResponse.success("Status code " + statusCode + " test successful", "Test completed"));
+}
+}
 }
