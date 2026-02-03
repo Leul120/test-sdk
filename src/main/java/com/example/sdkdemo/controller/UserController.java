@@ -304,8 +304,8 @@ public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validat
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("ILLEGAL_ARGUMENT_ERROR: " + e.getMessage()));
-        } catch (IllegalStateException e) {
+return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+.body(ApiResponse.error("BAD_REQUEST: Invalid search parameters - " + e.getMessage()));
             log.error("IllegalStateException caught", e);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("ILLEGAL_STATE_ERROR: " + e.getMessage()));
