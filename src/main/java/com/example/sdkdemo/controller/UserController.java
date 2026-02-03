@@ -238,21 +238,22 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
 @PostMapping("/users/invalid")
 public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validated CreateUserRequest request) {
     log.info("Attempting to create invalid user: ", request.getEmail());
-    try {
+try {
         User user = User.builder()
-                .name(request.getName() == null ? "" : request.getName()) // Invalid: empty name
-                .email(request.getEmail() == null ? "invalid-email" : request.getEmail()) // Invalid: bad email format
-                .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole()) // Invalid: not USER or ADMIN
+                .name(request.getName() == null ? "" : request.getName())
+                .email(request.getEmail() == null ? "invalid-email" : request.getEmail())
+                .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole())
                 .build();
         User createdUser = userService.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, "User created successfully"));
-    } catch (RuntimeException e) { // Catch the specific exception
+    } catch (MethodArgumentNotValidException e) {
+        log.error("Validation error creating invalid user", e);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Validation failed: " + e.getFieldError().getDefaultMessage()));
+    } catch (RuntimeException e) {
         log.error("Error creating invalid user", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error creating invalid user"));
-    } catch (Exception e) { // Catch any other unexpected exceptions
-        log.error("Unexpected error creating invalid user", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Unexpected error creating invalid user"));
     }
+
 }
 }
