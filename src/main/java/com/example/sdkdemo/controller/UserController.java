@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -219,17 +220,15 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
     public ResponseEntity<ApiResponse<String>> triggerError() {
         log.info("Triggering a deliberate error for verification");
         try {
-            // Add a circuit breaker and timeout handling
-            if (Math.random() < 0.1) {
-                throw new RuntimeException("Simulated operation failure for testing error handling");
-            }
-        } catch (Exception e) {
-            log.error("Error triggering deliberate error", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error triggering deliberate error"));
-        }
-        
-        return ResponseEntity.ok(ApiResponse.success("Triggered successfully", "No error occurred this time"));
+ // Add a circuit breaker and timeout handling
+ if (Math.random() < 0.1) {
+ throw new RuntimeException("Simulated operation failure for testing error handling");
+ }
+ return ResponseEntity.ok(ApiResponse.success("Triggered successfully", "No error occurred this time"));
+ } catch (Exception e) {
+ log.error("Error triggering deliberate error", e);
+ return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
+ }
     }
 
 /**
@@ -238,22 +237,139 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
 @PostMapping("/users/invalid")
 public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validated CreateUserRequest request) {
     log.info("Attempting to create invalid user: ", request.getEmail());
-try {
+    try {
         User user = User.builder()
-                .name(request.getName() == null ? "" : request.getName())
-                .email(request.getEmail() == null ? "invalid-email" : request.getEmail())
-                .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole())
+                .name(request.getName() == null ? "" : request.getName()) // Invalid: empty name
+                .email(request.getEmail() == null ? "invalid-email" : request.getEmail()) // Invalid: bad email format
+                .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole()) // Invalid: not USER or ADMIN
                 .build();
         User createdUser = userService.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, "User created successfully"));
-    } catch (MethodArgumentNotValidException e) {
-        log.error("Validation error creating invalid user", e);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Validation failed: " + e.getFieldError().getDefaultMessage()));
-    } catch (RuntimeException e) {
+    } catch (RuntimeException e) { // Catch the specific exception
         log.error("Error creating invalid user", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error creating invalid user"));
+    } catch (Exception e) { // Catch any other unexpected exceptions
+        log.error("Unexpected error creating invalid user", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Unexpected error creating invalid user"));
+    }
+}
+
+    /**
+     * Endpoint to test various runtime exceptions
+     */
+    @GetMapping("/users/runtime-errors/{errorType}")
+    public ResponseEntity<ApiResponse<String>> testRuntimeErrors(@PathVariable String errorType) {
+        log.info("Testing runtime error type: {}", errorType);
+        
+        try {
+            switch (errorType.toLowerCase()) {
+                case "nullpointer":
+                    String nullString = null;
+                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(nullString.length()), "This should not execute"));
+                    
+                case "illegalargument":
+                    throw new IllegalArgumentException("Invalid argument provided for testing");
+                    
+                case "illegalstate":
+                    throw new IllegalStateException("Illegal state detected for testing");
+                    
+                case "numberformat":
+                    Integer.parseInt("invalid-number");
+                    return ResponseEntity.ok(ApiResponse.success("This should not execute", "This should not execute"));
+                    
+                case "arrayindex":
+                    int[] array = new int[1];
+                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(array[5]), "This should not execute"));
+                    
+                case "classcast":
+                    Object obj = new String("test");
+                    Integer num = (Integer) obj;
+                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(num), "This should not execute"));
+                    
+                case "arithmetic":
+                    int result = 10 / 0;
+                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(result), "This should not execute"));
+                    
+                case "custom":
+                    throw new RuntimeException("Custom runtime exception for testing purposes");
+                    
+                default:
+                    return ResponseEntity.badRequest().body(ApiResponse.error("Unknown error type: " + errorType));
+            }
+        } catch (NullPointerException e) {
+            log.error("NullPointerException caught", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("NULL_POINTER_ERROR: " + e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.error("IllegalArgumentException caught", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("ILLEGAL_ARGUMENT_ERROR: " + e.getMessage()));
+        } catch (IllegalStateException e) {
+            log.error("IllegalStateException caught", e);
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("ILLEGAL_STATE_ERROR: " + e.getMessage()));
+        } catch (ArrayIndexOutOfBoundsException e) {
+            log.error("ArrayIndexOutOfBoundsException caught", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("ARRAY_INDEX_ERROR: " + e.getMessage()));
+        } catch (ClassCastException e) {
+            log.error("ClassCastException caught", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("CLASS_CAST_ERROR: " + e.getMessage()));
+        } catch (ArithmeticException e) {
+            log.error("ArithmeticException caught", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("ARITHMETIC_ERROR: " + e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("RuntimeException caught", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("RUNTIME_ERROR: " + e.getMessage()));
+        }
     }
 
-}
+    /**
+     * Endpoint to test HTTP status codes
+     */
+    @GetMapping("/users/http-status/{statusCode}")
+    public ResponseEntity<ApiResponse<String>> testHttpStatusCodes(@PathVariable int statusCode) {
+        log.info("Testing HTTP status code: {}", statusCode);
+        
+        switch (statusCode) {
+            case 400:
+                return ResponseEntity.badRequest().body(ApiResponse.error("Bad Request - Invalid input"));
+            case 401:
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Unauthorized - Authentication required"));
+            case 403:
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("Forbidden - Access denied"));
+            case 404:
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("Not Found - Resource does not exist"));
+            case 405:
+                return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                        .body(ApiResponse.error("Method Not Allowed"));
+            case 409:
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiResponse.error("Conflict - Resource conflict"));
+            case 422:
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(ApiResponse.error("Unprocessable Entity - Validation failed"));
+            case 429:
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(ApiResponse.error("Too Many Requests - Rate limit exceeded"));
+            case 500:
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ApiResponse.error("Internal Server Error"));
+            case 502:
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                        .body(ApiResponse.error("Bad Gateway"));
+            case 503:
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(ApiResponse.error("Service Unavailable"));
+            default:
+                return ResponseEntity.ok(ApiResponse.success("Status code " + statusCode + " test successful", "Test completed"));
+        }
+    }
 }
