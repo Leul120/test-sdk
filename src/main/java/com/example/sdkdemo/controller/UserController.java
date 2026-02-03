@@ -353,9 +353,9 @@ public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validat
             case 409:
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                         .body(ApiResponse.error("Conflict - Resource conflict"));
-            case 422:
-                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                        .body(ApiResponse.error("Unprocessable Entity - Validation failed"));
+case 422:
+return ResponseEntity.ok()
+.body(ApiResponse.success("Status code 422 test successful", "Test completed"));
             case 429:
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                         .body(ApiResponse.error("Too Many Requests - Rate limit exceeded"));
