@@ -276,8 +276,11 @@ public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validat
         
         try {
             // Potential runtime error: division by zero if size is 0
-            if (size <= 0) {
-                throw new IllegalArgumentException("Page size must be greater than 0");
+if (size <= 0) {
+                throw new IllegalArgumentException("Page size must be a positive integer.");
+            }
+            if (page < 0) {
+                throw new IllegalArgumentException("Page number must be a non-negative integer.");
             }
             
             // Potential runtime error: null pointer if filters are not handled properly
