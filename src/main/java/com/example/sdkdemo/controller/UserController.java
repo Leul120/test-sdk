@@ -16,6 +16,9 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 /**
  * REST controller for user management operations.
@@ -256,120 +259,303 @@ public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validat
 }
 
     /**
-     * Endpoint to test various runtime exceptions
+     * Search users with complex filters (may cause runtime errors)
      */
-    @GetMapping("/users/runtime-errors/{errorType}")
-    public ResponseEntity<ApiResponse<String>> testRuntimeErrors(@PathVariable String errorType) {
-        log.info("Testing runtime error type: {}", errorType);
+    @GetMapping("/users/search")
+    public ResponseEntity<ApiResponse<List<User>>> searchUsers(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        log.info("Searching users with filters - name: {}, email: {}, role: {}, department: {}, active: {}, page: {}, size: {}", 
+                name, email, role, department, active, page, size);
         
         try {
-            switch (errorType.toLowerCase()) {
-                case "nullpointer":
-                    String nullString = null;
-                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(nullString.length()), "This should not execute"));
-                    
-                case "illegalargument":
-                    throw new IllegalArgumentException("Invalid argument provided for testing");
-                    
-                case "illegalstate":
-                    throw new IllegalStateException("Illegal state detected for testing");
-                    
-                case "numberformat":
-                    Integer.parseInt("invalid-number");
-                    return ResponseEntity.ok(ApiResponse.success("This should not execute", "This should not execute"));
-                    
-                case "arrayindex":
-                    int[] array = new int[1];
-                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(array[5]), "This should not execute"));
-                    
-                case "classcast":
-                    Object obj = new String("test");
-                    Integer num = (Integer) obj;
-                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(num), "This should not execute"));
-                    
-                case "arithmetic":
-                    int result = 10 / 0;
-                    return ResponseEntity.ok(ApiResponse.success(String.valueOf(result), "This should not execute"));
-                    
-                case "custom":
-                    throw new RuntimeException("Custom runtime exception for testing purposes");
-                    
-                default:
-                    return ResponseEntity.badRequest().body(ApiResponse.error("Unknown error type: " + errorType));
+            // Potential runtime error: division by zero if size is 0
+            if (size <= 0) {
+                throw new IllegalArgumentException("Page size must be greater than 0");
             }
-        } catch (NullPointerException e) {
-            log.error("NullPointerException caught", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("NULL_POINTER_ERROR: " + e.getMessage()));
+            
+            // Potential runtime error: null pointer if filters are not handled properly
+            List<User> users = userService.searchUsers(name, email, role, department, active);
+            
+            // Potential runtime error: array index out of bounds if page is invalid
+            int startIndex = page * size;
+            if (startIndex >= users.size()) {
+                return ResponseEntity.ok(ApiResponse.success(List.of(), "No users found for the given page"));
+            }
+            
+            int endIndex = Math.min(startIndex + size, users.size());
+            List<User> paginatedUsers = users.subList(startIndex, endIndex);
+            
+            return ResponseEntity.ok(ApiResponse.success(paginatedUsers, 
+                    String.format("Found %d users (page %d, showing %d results)", users.size(), page, paginatedUsers.size())));
+                
         } catch (IllegalArgumentException e) {
-            log.error("IllegalArgumentException caught", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("ILLEGAL_ARGUMENT_ERROR: " + e.getMessage()));
-        } catch (IllegalStateException e) {
-            log.error("IllegalStateException caught", e);
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("ILLEGAL_STATE_ERROR: " + e.getMessage()));
-        } catch (ArrayIndexOutOfBoundsException e) {
-            log.error("ArrayIndexOutOfBoundsException caught", e);
+            log.error("Invalid search parameters", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid search parameters: " + e.getMessage()));
+        } catch (IndexOutOfBoundsException e) {
+            log.error("Index out of bounds during pagination", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid page number: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error during user search", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("ARRAY_INDEX_ERROR: " + e.getMessage()));
-        } catch (ClassCastException e) {
-            log.error("ClassCastException caught", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("CLASS_CAST_ERROR: " + e.getMessage()));
-        } catch (ArithmeticException e) {
-            log.error("ArithmeticException caught", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("ARITHMETIC_ERROR: " + e.getMessage()));
-        } catch (RuntimeException e) {
-            log.error("RuntimeException caught", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("RUNTIME_ERROR: " + e.getMessage()));
+                    .body(ApiResponse.error("Error during user search: " + e.getMessage()));
         }
     }
 
     /**
-     * Endpoint to test HTTP status codes
+     * Bulk operations on users (may cause runtime errors)
      */
-    @GetMapping("/users/http-status/{statusCode}")
-    public ResponseEntity<ApiResponse<String>> testHttpStatusCodes(@PathVariable int statusCode) {
-        log.info("Testing HTTP status code: {}", statusCode);
+    @PostMapping("/users/bulk")
+    public ResponseEntity<ApiResponse<List<User>>> bulkCreateUsers(@RequestBody List<@Valid CreateUserRequest> requests) {
+        log.info("Bulk creating {} users", requests.size());
         
-        switch (statusCode) {
-            case 400:
-                return ResponseEntity.badRequest().body(ApiResponse.error("Bad Request - Invalid input"));
-            case 401:
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Unauthorized - Authentication required"));
-            case 403:
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("Forbidden - Access denied"));
-            case 404:
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Not Found - Resource does not exist"));
-            case 405:
-                return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                        .body(ApiResponse.error("Method Not Allowed"));
-            case 409:
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(ApiResponse.error("Conflict - Resource conflict"));
-case 422:
-return ResponseEntity.ok()
-.body(ApiResponse.success("Status code 422 test successful", "Test completed"));
-            case 429:
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(ApiResponse.error("Too Many Requests - Rate limit exceeded"));
-            case 500:
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(ApiResponse.error("Internal Server Error"));
-            case 502:
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                        .body(ApiResponse.error("Bad Gateway"));
-            case 503:
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(ApiResponse.error("Service Unavailable"));
-            default:
-                return ResponseEntity.ok(ApiResponse.success("Status code " + statusCode + " test successful", "Test completed"));
+        try {
+            // Potential runtime error: null pointer if requests list is null
+            if (requests == null) {
+                throw new IllegalArgumentException("User requests list cannot be null");
+            }
+            
+            // Potential runtime error: out of memory if list is too large
+            if (requests.size() > 1000) {
+                throw new IllegalArgumentException("Cannot create more than 1000 users in a single request");
+            }
+            
+            List<User> createdUsers = new ArrayList<>();
+            int successCount = 0;
+            int failureCount = 0;
+            
+            for (CreateUserRequest request : requests) {
+                try {
+                    User user = User.builder()
+                            .name(request.getName())
+                            .email(request.getEmail())
+                            .role(request.getRole())
+                            .phone(request.getPhone())
+                            .department(request.getDepartment())
+                            .build();
+                    
+                    User createdUser = userService.createUser(user);
+                    createdUsers.add(createdUser);
+                    successCount++;
+                    
+                } catch (Exception e) {
+                    log.error("Failed to create user: {}", request.getEmail(), e);
+                    failureCount++;
+                }
+            }
+            
+            String message = String.format("Bulk operation completed. Success: %d, Failures: %d", successCount, failureCount);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(createdUsers, message));
+                    
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid bulk operation parameters", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid bulk operation: " + e.getMessage()));
+        } catch (OutOfMemoryError e) {
+            log.error("Out of memory during bulk operation", e);
+            return ResponseEntity.status(HttpStatus.INSUFFICIENT_STORAGE)
+                    .body(ApiResponse.error("Insufficient memory for bulk operation"));
+        } catch (Exception e) {
+            log.error("Error during bulk user creation", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error during bulk user creation: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Export users to different formats (may cause runtime errors)
+     */
+    @GetMapping("/users/export")
+    public ResponseEntity<ApiResponse<String>> exportUsers(
+            @RequestParam(defaultValue = "json") String format,
+            @RequestParam(required = false) String filter) {
+        
+        log.info("Exporting users in format: {} with filter: {}", format, filter);
+        
+        try {
+            List<User> users = userService.getAllUsers();
+            
+            // Potential runtime error: class cast during format conversion
+            switch (format.toLowerCase()) {
+                case "json":
+                    // Potential runtime error: JSON serialization error
+                    String jsonResult = convertUsersToJson(users);
+                    return ResponseEntity.ok(ApiResponse.success(jsonResult, "Users exported as JSON"));
+                    
+                case "csv":
+                    // Potential runtime error: CSV formatting error
+                    String csvResult = convertUsersToCsv(users);
+                    return ResponseEntity.ok(ApiResponse.success(csvResult, "Users exported as CSV"));
+                    
+                case "xml":
+                    // Potential runtime error: XML conversion error
+                    String xmlResult = convertUsersToXml(users);
+                    return ResponseEntity.ok(ApiResponse.success(xmlResult, "Users exported as XML"));
+                    
+                default:
+                    throw new IllegalArgumentException("Unsupported export format: " + format);
+            }
+            
+        } catch (ClassCastException e) {
+            log.error("Type conversion error during export", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Type conversion error during export: " + e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid export format", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error during user export", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error during user export: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Complex user analytics (may cause runtime errors)
+     */
+    @GetMapping("/users/analytics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAnalytics(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        log.info("Generating user analytics from {} to {}", startDate, endDate);
+        
+        try {
+            // Potential runtime error: date parsing error
+            if (startDate != null && endDate != null) {
+                // Simulate date parsing that could fail
+                if (startDate.equals("invalid") || endDate.equals("invalid")) {
+                    throw new IllegalArgumentException("Invalid date format");
+                }
+            }
+            
+            List<User> allUsers = userService.getAllUsers();
+            
+            // Potential runtime error: division by zero
+            double totalUsers = allUsers.size();
+            if (totalUsers == 0) {
+                throw new IllegalStateException("No users found for analytics");
+            }
+            
+            // Potential runtime error: null pointer in stream operations
+            Map<String, Long> roleDistribution = allUsers.stream()
+                    .filter(user -> user.getRole() != null)
+                    .collect(Collectors.groupingBy(
+                            User::getRole, 
+                            Collectors.counting()
+                    ));
+            
+            Map<String, Long> departmentDistribution = allUsers.stream()
+                    .filter(user -> user.getDepartment() != null)
+                    .collect(Collectors.groupingBy(
+                            User::getDepartment, 
+                            Collectors.counting()
+                    ));
+            
+            // Potential runtime error: arithmetic exception
+            long activeUsers = allUsers.stream()
+                    .filter(user -> user.getActive() != null && user.getActive())
+                    .count();
+            
+            double activePercentage = (activeUsers / totalUsers) * 100;
+            
+            Map<String, Object> analytics = Map.of(
+                    "totalUsers", totalUsers,
+                    "activeUsers", activeUsers,
+                    "activePercentage", activePercentage,
+                    "roleDistribution", roleDistribution,
+                    "departmentDistribution", departmentDistribution,
+                    "generatedAt", LocalDateTime.now().toString()
+            );
+            
+            return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics generated successfully"));
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid date parameters for analytics", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid date parameters: " + e.getMessage()));
+        } catch (IllegalStateException e) {
+            log.error("No data available for analytics", e);
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .body(ApiResponse.error("No data available for analytics: " + e.getMessage()));
+        } catch (ArithmeticException e) {
+            log.error("Arithmetic error during analytics calculation", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Calculation error: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error generating analytics", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error generating analytics: " + e.getMessage()));
+        }
+    }
+
+    // Helper methods for export functionality (may cause runtime errors)
+    private String convertUsersToJson(List<User> users) {
+        try {
+            // Potential runtime error: JSON serialization failure
+            StringBuilder json = new StringBuilder();
+            json.append("[");
+            for (int i = 0; i < users.size(); i++) {
+                User user = users.get(i);
+                json.append("{");
+                json.append("\"id\":").append(user.getId()).append(",");
+                json.append("\"name\":\"").append(user.getName() != null ? user.getName() : "").append("\",");
+                json.append("\"email\":\"").append(user.getEmail() != null ? user.getEmail() : "").append("\",");
+                json.append("\"role\":\"").append(user.getRole() != null ? user.getRole() : "").append("\"");
+                json.append("}");
+                if (i < users.size() - 1) json.append(",");
+            }
+            json.append("]");
+            return json.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("JSON serialization failed", e);
+        }
+    }
+
+    private String convertUsersToCsv(List<User> users) {
+        try {
+            // Potential runtime error: CSV formatting failure
+            StringBuilder csv = new StringBuilder();
+            csv.append("ID,Name,Email,Role,Department,Active\n");
+            for (User user : users) {
+                csv.append(user.getId()).append(",");
+                csv.append(user.getName() != null ? user.getName() : "").append(",");
+                csv.append(user.getEmail() != null ? user.getEmail() : "").append(",");
+                csv.append(user.getRole() != null ? user.getRole() : "").append(",");
+                csv.append(user.getDepartment() != null ? user.getDepartment() : "").append(",");
+                csv.append(user.getActive() != null ? user.getActive() : false).append("\n");
+            }
+            return csv.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("CSV formatting failed", e);
+        }
+    }
+
+    private String convertUsersToXml(List<User> users) {
+        try {
+            // Potential runtime error: XML generation failure
+            StringBuilder xml = new StringBuilder();
+            xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            xml.append("<users>\n");
+            for (User user : users) {
+                xml.append("  <user>\n");
+                xml.append("    <id>").append(user.getId()).append("</id>\n");
+                xml.append("    <name>").append(user.getName() != null ? user.getName() : "").append("</name>\n");
+                xml.append("    <email>").append(user.getEmail() != null ? user.getEmail() : "").append("</email>\n");
+                xml.append("    <role>").append(user.getRole() != null ? user.getRole() : "").append("</role>\n");
+                xml.append("    <department>").append(user.getDepartment() != null ? user.getDepartment() : "").append("</department>\n");
+                xml.append("    <active>").append(user.getActive() != null ? user.getActive() : false).append("</active>\n");
+                xml.append("  </user>\n");
+            }
+            xml.append("</users>");
+            return xml.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("XML generation failed", e);
         }
     }
 }

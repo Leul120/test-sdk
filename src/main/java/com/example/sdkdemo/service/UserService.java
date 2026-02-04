@@ -187,4 +187,40 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
         
         return userRepository.save(user);
     }
+    
+    @Transactional(readOnly = true)
+    public List<User> searchUsers(String name, String email, String role, String department, Boolean active) {
+        log.debug("Searching users with filters - name: {}, email: {}, role: {}, department: {}, active: {}", 
+                name, email, role, department, active);
+        
+        try {
+            // Potential runtime error: null pointer if repository returns null
+            List<User> allUsers = userRepository.findAll();
+            
+            return allUsers.stream()
+                    .filter(user -> {
+                        // Potential runtime error: null pointer during filtering
+                        boolean nameMatch = name == null || name.isEmpty() || 
+                                (user.getName() != null && user.getName().toLowerCase().contains(name.toLowerCase()));
+                        boolean emailMatch = email == null || email.isEmpty() || 
+                                (user.getEmail() != null && user.getEmail().toLowerCase().contains(email.toLowerCase()));
+                        boolean roleMatch = role == null || role.isEmpty() || 
+                                (user.getRole() != null && user.getRole().equalsIgnoreCase(role));
+                        boolean departmentMatch = department == null || department.isEmpty() || 
+                                (user.getDepartment() != null && user.getDepartment().toLowerCase().contains(department.toLowerCase()));
+                        boolean activeMatch = active == null || 
+                                (user.getActive() != null && user.getActive().equals(active));
+                        
+                        return nameMatch && emailMatch && roleMatch && departmentMatch && activeMatch;
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+                    
+        } catch (NullPointerException e) {
+            log.error("Null pointer exception during user search", e);
+            throw new RuntimeException("Error during user search: null value encountered", e);
+        } catch (Exception e) {
+            log.error("Error during user search", e);
+            throw new RuntimeException("Error during user search", e);
+        }
+    }
 }
