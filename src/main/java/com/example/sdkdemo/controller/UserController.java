@@ -380,49 +380,7 @@ if (size <= 0) {
     /**
      * Export users to different formats (may cause runtime errors)
      */
-    @GetMapping("/users/export")
-    public ResponseEntity<ApiResponse<String>> exportUsers(
-            @RequestParam(defaultValue = "json") String format,
-            @RequestParam(required = false) String filter) {
-        
-        log.info("Exporting users in format: {} with filter: {}", format, filter);
-        
-        try {
-            List<User> users = userService.getAllUsers();
-            
-            // Potential runtime error: class cast during format conversion
-            switch (format.toLowerCase()) {
-                case "json":
-                    // Potential runtime error: JSON serialization error
-                    String jsonResult = convertUsersToJson(users);
-                    return ResponseEntity.ok(ApiResponse.success(jsonResult, "Users exported as JSON"));
-                    
-                case "csv":
-                    // Potential runtime error: CSV formatting error
-                    String csvResult = convertUsersToCsv(users);
-                    return ResponseEntity.ok(ApiResponse.success(csvResult, "Users exported as CSV"));
-                    
-                case "xml":
-                    // Potential runtime error: XML conversion error
-                    String xmlResult = convertUsersToXml(users);
-                    return ResponseEntity.ok(ApiResponse.success(xmlResult, "Users exported as XML"));
-                    
-                default:
-                    throw new IllegalArgumentException("Unsupported export format: " + format);
-            }
-            
-        } catch (ClassCastException e) {
-            log.error("Type conversion error during export", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Type conversion error during export: " + e.getMessage()));
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid export format", e);
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("Error during user export", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error during user export: " + e.getMessage()));
-        }
+try { List<User> users = userService.getAllUsers(); // Potential runtime error: class cast during format conversion switch (format.toLowerCase()) { case "json": try { // Potential runtime error: JSON serialization error String jsonResult = convertUsersToJson(users); return ResponseEntity.ok(ApiResponse.success(jsonResult, "Users exported as JSON")); } catch (Exception e) { log.error("JSON serialization error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("JSON serialization error during export: " + e.getMessage())); } case "csv": try { // Potential runtime error: CSV formatting error String csvResult = convertUsersToCsv(users); return ResponseEntity.ok(ApiResponse.success(csvResult, "Users exported as CSV")); } catch (Exception e) { log.error("CSV formatting error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("CSV formatting error during export: " + e.getMessage())); } case "xml": try { // Potential runtime error: XML conversion error String xmlResult = convertUsersToXml(users); return ResponseEntity.ok(ApiResponse.success(xmlResult, "Users exported as XML")); } catch (Exception e) { log.error("XML conversion error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("XML conversion error during export: " + e.getMessage())); } default: throw new IllegalArgumentException("Unsupported export format: " + format); } } catch (ClassCastException e) { log.error("Type conversion error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Type conversion error during export: " + e.getMessage())); } catch (IllegalArgumentException e) { log.error("Invalid export format", e); return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage())); } catch (Exception e) { log.error("Error during user export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error during user export: " + e.getMessage())); }
     }
 
     /**
