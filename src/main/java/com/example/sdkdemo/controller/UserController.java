@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -39,17 +38,17 @@ public class UserController {
     /**
      * Get all users
      */
-@GetMapping("/users")
-public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
- log.info("Fetching all users");
- try {
- List<User> users = userService.getAllUsers();
- return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
- } catch (Exception e) {
- log.error("Error fetching all users", e);
- return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users"));
- }
-}
+    @GetMapping("/users")
+    public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
+        log.info("Fetching all users");
+        try {
+            List<User> users = userService.getAllUsers();
+            return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
+        } catch (Exception e) {
+            log.error("Error fetching all users", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users"));
+        }
+    }
 
     /**
      * Get user by ID
@@ -223,46 +222,39 @@ public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
     public ResponseEntity<ApiResponse<String>> triggerError() {
         log.info("Triggering a deliberate error for verification");
         try {
- // Add a circuit breaker and timeout handling
- if (Math.random() < 0.1) {
- throw new RuntimeException("Simulated operation failure for testing error handling");
- }
- return ResponseEntity.ok(ApiResponse.success("Triggered successfully", "No error occurred this time"));
- } catch (Exception e) {
- log.error("Error triggering deliberate error", e);
- return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
- }
+            // Add a circuit breaker and timeout handling
+            if (Math.random() < 0.1) {
+                throw new RuntimeException("Simulated operation failure for testing error handling");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Triggered successfully", "No error occurred this time"));
+        } catch (Exception e) {
+            log.error("Error triggering deliberate error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error triggering deliberate error"));
+        }
     }
 
-/**
- * Endpoint to test validation errors
- */
-@PostMapping("/users/invalid")
-public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validated CreateUserRequest request) {
-try {
-        User user = User.builder()
-                .name(request.getName() == null ? "" : request.getName())
-                .email(request.getEmail() == null ? "invalid-email" : request.getEmail())
-                .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole())
-                .build();
-        User createdUser = userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(createdUser, "User created successfully"));
-    } catch (IllegalArgumentException e) {
-        log.error("Validation error creating user", e);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
-    } catch (Exception e) {
-        log.error("Unexpected error creating invalid user", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Unexpected error creating invalid user"));
+    /**
+     * Endpoint to test validation errors
+     */
+    @PostMapping("/users/invalid")
+    public ResponseEntity<ApiResponse<User>> createInvalidUser(@RequestBody @Validated CreateUserRequest request) {
+        try {
+            User user = User.builder()
+                    .name(request.getName() == null ? "" : request.getName())
+                    .email(request.getEmail() == null ? "invalid-email" : request.getEmail())
+                    .role(request.getRole() == null ? "INVALID_ROLE" : request.getRole())
+                    .build();
+            User createdUser = userService.createUser(user);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(createdUser, "User created successfully"));
+        } catch (IllegalArgumentException e) {
+            log.error("Validation error creating user", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error creating invalid user", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Unexpected error creating invalid user"));
+        }
     }
-    } catch (RuntimeException e) { // Catch the specific exception
-        log.error("Error creating invalid user", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error creating invalid user"));
-    } catch (Exception e) { // Catch any other unexpected exceptions
-        log.error("Unexpected error creating invalid user", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Unexpected error creating invalid user"));
-    }
-}
 
     /**
      * Search users with complex filters (may cause runtime errors)
@@ -282,7 +274,7 @@ try {
         
         try {
             // Potential runtime error: division by zero if size is 0
-if (size <= 0) {
+            if (size <= 0) {
                 throw new IllegalArgumentException("Page size must be a positive integer.");
             }
             if (page < 0) {
@@ -380,7 +372,51 @@ if (size <= 0) {
     /**
      * Export users to different formats (may cause runtime errors)
      */
-try { List<User> users = userService.getAllUsers(); // Potential runtime error: class cast during format conversion switch (format.toLowerCase()) { case "json": try { // Potential runtime error: JSON serialization error String jsonResult = convertUsersToJson(users); return ResponseEntity.ok(ApiResponse.success(jsonResult, "Users exported as JSON")); } catch (Exception e) { log.error("JSON serialization error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("JSON serialization error during export: " + e.getMessage())); } case "csv": try { // Potential runtime error: CSV formatting error String csvResult = convertUsersToCsv(users); return ResponseEntity.ok(ApiResponse.success(csvResult, "Users exported as CSV")); } catch (Exception e) { log.error("CSV formatting error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("CSV formatting error during export: " + e.getMessage())); } case "xml": try { // Potential runtime error: XML conversion error String xmlResult = convertUsersToXml(users); return ResponseEntity.ok(ApiResponse.success(xmlResult, "Users exported as XML")); } catch (Exception e) { log.error("XML conversion error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("XML conversion error during export: " + e.getMessage())); } default: throw new IllegalArgumentException("Unsupported export format: " + format); } } catch (ClassCastException e) { log.error("Type conversion error during export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Type conversion error during export: " + e.getMessage())); } catch (IllegalArgumentException e) { log.error("Invalid export format", e); return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage())); } catch (Exception e) { log.error("Error during user export", e); return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error during user export: " + e.getMessage())); }
+    @GetMapping("/users/export")
+    public ResponseEntity<ApiResponse<String>> exportUsers(@RequestParam String format) {
+        log.info("Exporting users in format: {}", format);
+        
+        try {
+            List<User> users = userService.getAllUsers();
+            
+            switch (format.toLowerCase()) {
+                case "json":
+                    try {
+                        String jsonResult = convertUsersToJson(users);
+                        return ResponseEntity.ok(ApiResponse.success(jsonResult, "Users exported as JSON"));
+                    } catch (Exception e) {
+                        log.error("JSON serialization error during export", e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("JSON serialization error during export: " + e.getMessage()));
+                    }
+                case "csv":
+                    try {
+                        String csvResult = convertUsersToCsv(users);
+                        return ResponseEntity.ok(ApiResponse.success(csvResult, "Users exported as CSV"));
+                    } catch (Exception e) {
+                        log.error("CSV formatting error during export", e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("CSV formatting error during export: " + e.getMessage()));
+                    }
+                case "xml":
+                    try {
+                        String xmlResult = convertUsersToXml(users);
+                        return ResponseEntity.ok(ApiResponse.success(xmlResult, "Users exported as XML"));
+                    } catch (Exception e) {
+                        log.error("XML conversion error during export", e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("XML conversion error during export: " + e.getMessage()));
+                    }
+                default:
+                    throw new IllegalArgumentException("Unsupported export format: " + format);
+            }
+        } catch (ClassCastException e) {
+            log.error("Type conversion error during export", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Type conversion error during export: " + e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid export format", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error during user export", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error during user export: " + e.getMessage()));
+        }
     }
 
     /**
