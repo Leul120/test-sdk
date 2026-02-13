@@ -499,24 +499,24 @@ public class UserController {
 
     // Helper methods for export functionality (may cause runtime errors)
     private String convertUsersToJson(List<User> users) {
-        try {
-            // Potential runtime error: JSON serialization failure
+try {
             StringBuilder json = new StringBuilder();
-            json.append("[");
+            json.append("[ ");
             for (int i = 0; i < users.size(); i++) {
                 User user = users.get(i);
                 json.append("{");
-                json.append("\"id\":").append(user.getId()).append(",");
-                json.append("\"name\":\"").append(user.getName() != null ? user.getName() : "").append("\",");
-                json.append("\"email\":\"").append(user.getEmail() != null ? user.getEmail() : "").append("\",");
-                json.append("\"role\":\"").append(user.getRole() != null ? user.getRole() : "").append("\"");
+                json.append(""id":").append(user.getId()).append(",");
+                json.append(""name":").append(user.getName() != null ? user.getName() : "").append(",");
+                json.append(""email":").append(user.getEmail() != null ? user.getEmail() : "").append(",");
+                json.append(""role":").append(user.getRole() != null ? user.getRole() : "");
                 json.append("}");
                 if (i < users.size() - 1) json.append(",");
             }
             json.append("]");
             return json.toString();
         } catch (Exception e) {
-            throw new RuntimeException("JSON serialization failed", e);
+            log.error("Error serializing to JSON: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to serialize users to JSON", e);
         }
     }
 
