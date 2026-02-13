@@ -405,9 +405,10 @@ public class UserController {
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("XML conversion error during export: " + e.getMessage()));
                     }
                 default:
-                    throw new IllegalArgumentException("Unsupported export format: " + format);
+default:
+                log.warn("Unsupported export format: {}", format);
+                throw new IllegalArgumentException("Unsupported export format: " + format);
             }
-        } catch (ClassCastException e) {
             log.error("Type conversion error during export", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Type conversion error during export: " + e.getMessage()));
         } catch (IllegalArgumentException e) {
