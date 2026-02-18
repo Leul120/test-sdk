@@ -422,80 +422,44 @@ public class UserController {
     /**
      * Complex user analytics (may cause runtime errors)
      */
-    @GetMapping("/users/analytics")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAnalytics(
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
-        
-        log.info("Generating user analytics from {} to {}", startDate, endDate);
-        
-        try {
-            // Potential runtime error: date parsing error
-            if (startDate != null && endDate != null) {
-                // Simulate date parsing that could fail
-                if (startDate.equals("invalid") || endDate.equals("invalid")) {
-                    throw new IllegalArgumentException("Invalid date format");
-                }
-            }
-            
-            List<User> allUsers = userService.getAllUsers();
-            
-            // Potential runtime error: division by zero
-            double totalUsers = allUsers.size();
-            if (totalUsers == 0) {
-                throw new IllegalStateException("No users found for analytics");
-            }
-            
-            // Potential runtime error: null pointer in stream operations
-            Map<String, Long> roleDistribution = allUsers.stream()
-                    .filter(user -> user.getRole() != null)
-                    .collect(Collectors.groupingBy(
-                            User::getRole, 
-                            Collectors.counting()
-                    ));
-            
-            Map<String, Long> departmentDistribution = allUsers.stream()
-                    .filter(user -> user.getDepartment() != null)
-                    .collect(Collectors.groupingBy(
-                            User::getDepartment, 
-                            Collectors.counting()
-                    ));
-            
-            // Potential runtime error: arithmetic exception
-            long activeUsers = allUsers.stream()
-                    .filter(user -> user.getActive() != null && user.getActive())
-                    .count();
-            
-            double activePercentage = (activeUsers / totalUsers) * 100;
-            
-            Map<String, Object> analytics = Map.of(
-                    "totalUsers", totalUsers,
-                    "activeUsers", activeUsers,
-                    "activePercentage", activePercentage,
-                    "roleDistribution", roleDistribution,
-                    "departmentDistribution", departmentDistribution,
-                    "generatedAt", LocalDateTime.now().toString()
-            );
-            
-            return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics generated successfully"));
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid date parameters for analytics", e);
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid date parameters: " + e.getMessage()));
-        } catch (IllegalStateException e) {
-            log.error("No data available for analytics", e);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                    .body(ApiResponse.error("No data available for analytics: " + e.getMessage()));
-        } catch (ArithmeticException e) {
-            log.error("Arithmetic error during analytics calculation", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Calculation error: " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("Error generating analytics", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error generating analytics: " + e.getMessage()));
-        }
+@GetMapping("/users/analytics")
+public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAnalytics( ...)
+  try {
+    log.info("Generating user analytics from {} to {}", startDate, endDate);
+    // Potential runtime error: date parsing error
+    if (startDate != null && endDate != null) {
+      // Simulate date parsing that could fail
+      if (startDate.equals("invalid") || endDate.equals("invalid")) {
+        throw new IllegalArgumentException("Invalid date format");
+      }
     }
+    List<User> allUsers = userService.getAllUsers();
+    // Potential runtime error: division by zero
+    double totalUsers = allUsers.size();
+    if (totalUsers == 0) {
+      throw new IllegalStateException("No users found for analytics");
+    }
+    // Potential runtime error: null pointer in stream operations
+    Map<String, Long> roleDistribution = allUsers.stream().filter(user -> user.getRole() != null).collect(Collectors.groupingBy(User::getRole, Collectors.counting()));
+    Map<String, Long> departmentDistribution = allUsers.stream().filter(user -> user.getDepartment() != null).collect(Collectors.groupingBy(User::getDepartment, Collectors.counting()));
+    // Potential runtime error: arithmetic exception
+    long activeUsers = allUsers.stream().filter(user -> user.getActive() != null && user.getActive()).count();
+    double activePercentage = (activeUsers / totalUsers) * 100;
+    Map<String, Object> analytics = Map.of("totalUsers", totalUsers, "activeUsers", activeUsers, "activePercentage", activePercentage, "roleDistribution", roleDistribution, "departmentDistribution", departmentDistribution, "generatedAt", LocalDateTime.now().toString());
+    return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics generated successfully"));
+  } catch (IllegalArgumentException e) {
+    log.error("Invalid date parameters for analytics", e);
+    return ResponseEntity.badRequest().body(ApiResponse.error("Invalid date parameters: " + e.getMessage()));
+  } catch (IllegalStateException e) {
+    log.error("No data available for analytics", e);
+    return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ApiResponse.error("No data available for analytics: " + e.getMessage()));
+  } catch (ArithmeticException e) {
+    log.error("Arithmetic error during analytics calculation", e);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Calculation error: " + e.getMessage()));
+  } catch (Exception e) {
+    log.error("Error generating analytics", e);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error generating analytics: " + e.getMessage()));
+  }
 
     // Helper methods for export functionality (may cause runtime errors)
     private String convertUsersToJson(List<User> users) {
