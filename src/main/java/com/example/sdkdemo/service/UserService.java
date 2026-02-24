@@ -194,10 +194,10 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
                 name, email, role, department, active);
         
         try {
-            // Potential runtime error: null pointer if repository returns null
-            List<User> allUsers = userRepository.findAll();
-            
-            return allUsers.stream()
+List<User> allUsers = userRepository.findAll();
+allUsers = allUsers.stream()
+       .filter(user -> user!= null)
+       .collect(Collectors.toList());
                     .filter(user -> {
                         // Potential runtime error: null pointer during filtering
                         boolean nameMatch = name == null || name.isEmpty() || 
