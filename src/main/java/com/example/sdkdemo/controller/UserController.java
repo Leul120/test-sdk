@@ -370,7 +370,7 @@ public class UserController {
     }
 
     /**
-     * Export users to different formats (may cause runtime errors)
+catch (IllegalArgumentException e) { log.error("Invalid export format: " + e.getMessage(), e); return ResponseEntity.badRequest().body(ApiResponse.error("Invalid export format: " + e.getMessage())); }
      */
     @GetMapping("/users/export")
     public ResponseEntity<ApiResponse<String>> exportUsers(@RequestParam String format) {
