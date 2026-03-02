@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
 
 @Service
 @Slf4j
@@ -19,28 +20,55 @@ public class UserService {
         this.userRepository = userRepository;
     }
     
-@Transactional(readOnly = true)
-public List<User> getAllUsers() {
- log.debug("Fetching all users");
- try {
- return userRepository.findAll();
- } catch (Exception e) {
- log.error("Error fetching all users", e);
- throw new RuntimeException("Error fetching all users");
- }
-}
+    @Transactional(readOnly = true)
+    public List<User> getAllUsers() {
+        log.debug("Fetching all users");
+        try {
+            List<User> users = userRepository.findAll();
+            
+            // Potential runtime error: null pointer if repository returns null (rare but possible)
+            if (users == null) {
+                log.warn("User repository returned null, initializing empty list");
+                users = new ArrayList<>();
+            }
+            
+            // Potential runtime error: concurrent modification during iteration
+            // This could happen if another thread modifies the list while we're processing
+            for (User user : users) {
+                // Potential runtime error: null pointer in user data processing
+                if (user.getEmail() != null && user.getEmail().contains("@")) {
+                    // Process user email - could fail if email is malformed
+                    String domain = user.getEmail().substring(user.getEmail().indexOf("@") + 1);
+                    log.trace("User {} has domain: {}", user.getId(), domain);
+                }
+            }
+            
+            return users;
+        } catch (NullPointerException e) {
+            log.error("Null pointer exception while fetching users", e);
+            throw new RuntimeException("Error processing user data: null value encountered", e);
+        } catch (Exception e) {
+            log.error("Error fetching all users", e);
+            throw new RuntimeException("Error fetching all users", e);
+        }
+    }
     
-@Transactional(readOnly = true)
-public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
- log.debug("Fetching user by id: {} with circuit breaker", id);
- try {
- // Add circuit breaker and timeout handling
- return userRepository.findById(id);
- } catch (Exception e) {
- log.error("Error fetching user by id with circuit breaker", e);
- return Optional.empty();
- }
-}
+    @Transactional(readOnly = true)
+    public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
+        log.debug("Fetching user by id: {} with circuit breaker", id);
+        try {
+            // Add circuit breaker and timeout handling
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("User ID must be a positive number");
+            }
+            
+            // Potential runtime error: infinite recursion if circuit breaker fails
+            return userRepository.findById(id);
+        } catch (Exception e) {
+            log.error("Error fetching user by id with circuit breaker", e);
+            return Optional.empty();
+        }
+    }
     
     @Transactional(readOnly = true)
     public Optional<User> getUserByEmail(String email) {
@@ -52,7 +80,16 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
     public User createUser(User user) {
         log.info("Creating new user: {}", user.getEmail());
         
-        // Check if email already exists
+        // Potential runtime error: null pointer if user is null
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
+        
+        // Potential runtime error: null pointer in email check
+        if (user.getEmail() == null) {
+            throw new IllegalArgumentException("User email cannot be null");
+        }
+        
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new IllegalArgumentException("User with email " + user.getEmail() + " already exists");
         }
@@ -62,8 +99,16 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
             throw new IllegalArgumentException("Invalid role: " + user.getRole());
         }
         
-        user.setCreatedAt(java.time.LocalDateTime.now());
-        user.setUpdatedAt(java.time.LocalDateTime.now());
+        // Potential runtime error: null pointer in date operations (system clock issues)
+        try {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            user.setCreatedAt(now);
+            user.setUpdatedAt(now);
+        } catch (Exception e) {
+            log.error("Error setting timestamps", e);
+            throw new RuntimeException("Failed to set creation timestamps", e);
+        }
+        
         user.setCreatedBy("system");
         user.setUpdatedBy("system");
         
@@ -76,16 +121,39 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
     public User updateUser(Long id, User userDetails) {
         log.info("Updating user with id: {}", id);
         
+        // Potential runtime error: null pointer in findById
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
         
-        // Update fields
-        existingUser.setName(userDetails.getName());
-        existingUser.setEmail(userDetails.getEmail());
-        existingUser.setRole(userDetails.getRole());
-        existingUser.setPhone(userDetails.getPhone());
-        existingUser.setDepartment(userDetails.getDepartment());
-        existingUser.setUpdatedAt(java.time.LocalDateTime.now());
+        // Potential runtime error: null pointer in userDetails
+        if (userDetails == null) {
+            throw new IllegalArgumentException("User details cannot be null");
+        }
+        
+        // Update fields with potential null pointer issues
+        if (userDetails.getName() != null) {
+            existingUser.setName(userDetails.getName());
+        }
+        if (userDetails.getEmail() != null) {
+            existingUser.setEmail(userDetails.getEmail());
+        }
+        if (userDetails.getRole() != null) {
+            existingUser.setRole(userDetails.getRole());
+        }
+        if (userDetails.getPhone() != null) {
+            existingUser.setPhone(userDetails.getPhone());
+        }
+        if (userDetails.getDepartment() != null) {
+            existingUser.setDepartment(userDetails.getDepartment());
+        }
+        
+        // Potential runtime error: null pointer in date operations
+        try {
+            existingUser.setUpdatedAt(java.time.LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("Error setting update timestamp", e);
+            throw new RuntimeException("Failed to set update timestamp");
+        }
         existingUser.setUpdatedBy("system");
         
         // Validate role
@@ -148,10 +216,20 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
     public User performComplexUserOperation(Long userId, String operation) {
         log.info("Performing complex operation '{}' on user: {}", operation, userId);
         
+        // Potential runtime error: null pointer in userId
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID cannot be null");
+        }
+        
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
         
-        // Simulate different operations
+        // Potential runtime error: null pointer in operation
+        if (operation == null) {
+            throw new IllegalArgumentException("Operation cannot be null");
+        }
+        
+        // Simulate different operations with potential errors
         switch (operation.toLowerCase()) {
             case "promote_to_admin":
                 if (!user.isAdmin()) {
@@ -176,13 +254,29 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
                 user.setUpdatedBy("system");
                 break;
                 
+            case "corrupt_data":
+                // Intentionally corrupt data for testing
+                user.setEmail(null);
+                user.setName(null);
+                break;
+                
+            case "duplicate_email":
+                // Simulate email duplication issue
+                user.setEmail("duplicate@example.com");
+                break;
+                
             default:
                 throw new IllegalArgumentException("Unknown operation: " + operation);
         }
         
-        // Simulate potential failure
-        if (Math.random() < 0.1) { // 10% chance of failure
+        // Simulate potential failure with different probabilities
+        double random = Math.random();
+        if (random < 0.1) { // 10% chance of failure
             throw new RuntimeException("Simulated operation failure for testing error handling");
+        } else if (random < 0.15) { // 5% chance of null pointer
+            throw new NullPointerException("Simulated null pointer in complex operation");
+        } else if (random < 0.2) { // 5% chance of illegal state
+            throw new IllegalStateException("Simulated illegal state in complex operation");
         }
         
         return userRepository.save(user);
@@ -196,22 +290,32 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
         try {
             // Potential runtime error: null pointer if repository returns null
             List<User> allUsers = userRepository.findAll();
+            if (allUsers == null) {
+                allUsers = new ArrayList<>(); // Fix: initialize if null
+            }
             
+            // Potential runtime error: null pointer during filtering
             return allUsers.stream()
                     .filter(user -> {
-                        // Potential runtime error: null pointer during filtering
-                        boolean nameMatch = name == null || name.isEmpty() || 
-                                (user.getName() != null && user.getName().toLowerCase().contains(name.toLowerCase()));
-                        boolean emailMatch = email == null || email.isEmpty() || 
-                                (user.getEmail() != null && user.getEmail().toLowerCase().contains(email.toLowerCase()));
-                        boolean roleMatch = role == null || role.isEmpty() || 
-                                (user.getRole() != null && user.getRole().equalsIgnoreCase(role));
-                        boolean departmentMatch = department == null || department.isEmpty() || 
-                                (user.getDepartment() != null && user.getDepartment().toLowerCase().contains(department.toLowerCase()));
-                        boolean activeMatch = active == null || 
-                                (user.getActive() != null && user.getActive().equals(active));
-                        
-                        return nameMatch && emailMatch && roleMatch && departmentMatch && activeMatch;
+                        try {
+                            // Multiple potential null pointer exceptions
+                            boolean nameMatch = name == null || name.isEmpty() || 
+                                    (user.getName() != null && user.getName().toLowerCase().contains(name.toLowerCase()));
+                            boolean emailMatch = email == null || email.isEmpty() || 
+                                    (user.getEmail() != null && user.getEmail().toLowerCase().contains(email.toLowerCase()));
+                            boolean roleMatch = role == null || role.isEmpty() || 
+                                    (user.getRole() != null && user.getRole().equalsIgnoreCase(role));
+                            boolean departmentMatch = department == null || department.isEmpty() || 
+                                    (user.getDepartment() != null && user.getDepartment().toLowerCase().contains(department.toLowerCase()));
+                            boolean activeMatch = active == null || 
+                                    (user.getActive() != null && user.getActive().equals(active));
+                            
+                            return nameMatch && emailMatch && roleMatch && departmentMatch && activeMatch;
+                        } catch (NullPointerException e) {
+                            log.warn("Null pointer in user filtering for user ID: {}", 
+                                    user != null ? user.getId() : "null");
+                            return false;
+                        }
                     })
                     .collect(java.util.stream.Collectors.toList());
                     
@@ -223,4 +327,5 @@ public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
             throw new RuntimeException("Error during user search", e);
         }
     }
+    
 }
