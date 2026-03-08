@@ -1,6 +1,5 @@
 package com.example.sdkdemo;
 
-import com.aisynapse.sdk.annotation.EnableSynapse;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
