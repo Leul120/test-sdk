@@ -21,12 +21,7 @@ spring:
     console:
       enabled: true
 
-# AI-Synapse SDK Configuration
-aisynapse:
-  core-url: http://localhost:8080
-  transport: HTTP
-  debug: true
-  repository-name: Leul120/test-sdk
+
 
 logging:
   level:

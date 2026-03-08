@@ -9,7 +9,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * The @EnableSynapse annotation activates the SDK monitoring.
  */
 @SpringBootApplication
-@EnableSynapse
 public class SdkDemoApplication {
 
     public static void main(String[] args) {

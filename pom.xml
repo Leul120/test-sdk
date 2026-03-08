@@ -28,12 +28,8 @@
     </properties>
 
     <dependencies>
-        <!-- AI-Synapse SDK -->
-        <dependency>
-            <groupId>com.aisynapse</groupId>
-            <artifactId>aisynapse-sdk-java</artifactId>
-            <version>1.0.0</version>
-        </dependency>
+
+        
 
         <!-- Spring Boot Starter Web -->
         <dependency>
