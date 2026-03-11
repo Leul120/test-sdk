@@ -83,40 +83,31 @@ public class UserController {
         }
     }
 
-    /**
-     * Create a new user
-     */
+    
     @PostMapping("/users")
-    public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
-        log.info("Creating new user: {}", request.getEmail());
-        
-        try {
-            User user = User.builder()
-                    .name(request.getName())
-                    .email(request.getEmail())
-                    .role(request.getRole())
-                    .phone(request.getPhone())
-                    .department(request.getDepartment())
-                    .build();
-            
-            // Potential runtime error: email validation without null check
-            if (user.getEmail().length() > 50) {
-                log.warn("Email length exceeds 50 characters: {}", user.getEmail().length());
-            }
-            
-            User createdUser = userService.createUser(user);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success(createdUser, "User created successfully"));
-        } catch (NullPointerException e) {
-            log.error("Null pointer in user creation", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Invalid user data: required field is null"));
-        } catch (Exception e) {
-            log.error("Error creating user", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error creating user: " + e.getMessage()));
+public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
+    log.info("Creating new user: {}", request.getEmail());
+    try {
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Name is required and cannot be empty"));
         }
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Email is required and cannot be empty"));
+        }
+        if (request.getEmail().length() > 50) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Email cannot exceed 50 characters"));
+        }
+        if (request.getRole() == null || request.getRole().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Role is required and cannot be empty"));
+        }
+        User user = User.builder().name(request.getName().trim()).email(request.getEmail().trim()).role(request.getRole().trim()).phone(request.getPhone()).department(request.getDepartment()).build();
+        User createdUser = userService.createUser(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdUser, "User created successfully"));
+    } catch (Exception e) {
+        log.error("Error creating user", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error creating user: " + e.getMessage()));
     }
+}
 
     /**
      * Update an existing user
