@@ -47,7 +47,7 @@ public class UserController {
             return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
         } catch (Exception e) {
             log.error("Error fetching all users", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users: " + e.getMessage()));
         }
     }
 

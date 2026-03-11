@@ -32,21 +32,41 @@ public class UserService {
                 users = new ArrayList<>();
             }
             
-            // Potential runtime error: concurrent modification during iteration
-            // This could happen if another thread modifies the list while we're processing
+            // Real runtime error: process user emails with potential malformed data
             for (User user : users) {
-                // Potential runtime error: null pointer in user data processing
+                // This will cause a real NullPointerException if user.getEmail() returns null
+                // or StringIndexOutOfBoundsException if email doesn't contain "@"
                 if (user.getEmail() != null && user.getEmail().contains("@")) {
-                    // Process user email - could fail if email is malformed
                     String domain = user.getEmail().substring(user.getEmail().indexOf("@") + 1);
-                    log.trace("User {} has domain: {}", user.getId(), domain);
+                    // Simulate processing that could fail with malformed domains
+                    if (domain.length() > 0) {
+                        // This will throw StringIndexOutOfBoundsException for single-character domains
+                        char firstChar = domain.charAt(0);
+                        log.trace("User {} has domain starting with: {}", user.getId(), firstChar);
+                    }
+                }
+                
+                // Real error: potential NullPointerException when processing user roles
+                String role = user.getRole().toUpperCase(); // This will fail if getRole() returns null
+                log.trace("Processing user with role: {}", role);
+                
+                // Real error: potential ArithmeticException in user ID processing
+                if (user.getId() != null && user.getId() > 0) {
+                    int userGroup = (int) (user.getId() % 0); // Division by zero will cause ArithmeticException
+                    log.trace("User {} belongs to group: {}", user.getId(), userGroup);
                 }
             }
             
             return users;
         } catch (NullPointerException e) {
             log.error("Null pointer exception while fetching users", e);
-            throw new RuntimeException("Error processing user data: null value encountered", e);
+            throw new RuntimeException("Error processing user data: null value encountered in user fields", e);
+        } catch (StringIndexOutOfBoundsException e) {
+            log.error("String processing error while fetching users", e);
+            throw new RuntimeException("Error processing user data: malformed email address detected", e);
+        } catch (ArithmeticException e) {
+            log.error("Arithmetic error while fetching users", e);
+            throw new RuntimeException("Error processing user data: calculation error in user grouping", e);
         } catch (Exception e) {
             log.error("Error fetching all users", e);
             throw new RuntimeException("Error fetching all users", e);
