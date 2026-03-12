@@ -50,9 +50,9 @@ public class UserService {
                 String role = user.getRole().toUpperCase(); // This will fail if getRole() returns null
                 log.trace("Processing user with role: {}", role);
                 
-                // Real error: potential ArithmeticException in user ID processing
+                // Fixed: use modulo 10 to avoid division by zero
                 if (user.getId() != null && user.getId() > 0) {
-                    int userGroup = (int) (user.getId() % 0); // Division by zero will cause ArithmeticException
+                    int userGroup = (int) (user.getId() % 10);
                     log.trace("User {} belongs to group: {}", user.getId(), userGroup);
                 }
             }
