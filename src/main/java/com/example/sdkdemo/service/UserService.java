@@ -21,57 +21,49 @@ public class UserService {
     }
     
     @Transactional(readOnly = true)
-    public List<User> getAllUsers() {
-        log.debug("Fetching all users");
-        try {
-            List<User> users = userRepository.findAll();
-            
-            // Potential runtime error: null pointer if repository returns null (rare but possible)
-            if (users == null) {
-                log.warn("User repository returned null, initializing empty list");
-                users = new ArrayList<>();
-            }
-            
-            // Real runtime error: process user emails with potential malformed data
-            for (User user : users) {
-                // This will cause a real NullPointerException if user.getEmail() returns null
-                // or StringIndexOutOfBoundsException if email doesn't contain "@"
-                if (user.getEmail() != null && user.getEmail().contains("@")) {
+public List<User> getAllUsers() {
+    log.debug("Fetching all users");
+    try {
+        List<User> users = userRepository.findAll();
+        if (users == null) {
+            log.warn("User repository returned null, initializing empty list");
+            users = new ArrayList<>();
+        }
+        for (User user : users) {
+            if (user.getEmail() != null && user.getEmail().contains("@")) {
+                try {
                     String domain = user.getEmail().substring(user.getEmail().indexOf("@") + 1);
-                    // Simulate processing that could fail with malformed domains
-                    if (domain.length() > 0) {
-                        // This will throw StringIndexOutOfBoundsException for single-character domains
+                    if (domain.length() > 1) {
                         char firstChar = domain.charAt(0);
                         log.trace("User {} has domain starting with: {}", user.getId(), firstChar);
+                    } else {
+                        log.trace("User {} has domain: {}", user.getId(), domain);
                     }
-                }
-                
-                // Real error: potential NullPointerException when processing user roles
-                String role = user.getRole().toUpperCase(); // This will fail if getRole() returns null
-                log.trace("Processing user with role: {}", role);
-                
-                // Real error: potential ArithmeticException in user ID processing
-                if (user.getId() != null && user.getId() > 0) {
-                    int userGroup = (int) (user.getId() % 0); // Division by zero will cause ArithmeticException
-                    log.trace("User {} belongs to group: {}", user.getId(), userGroup);
+                } catch (StringIndexOutOfBoundsException e) {
+                    log.warn("Malformed email for user {}: {}", user.getId(), user.getEmail());
                 }
             }
-            
-            return users;
-        } catch (NullPointerException e) {
-            log.error("Null pointer exception while fetching users", e);
-            throw new RuntimeException("Error processing user data: null value encountered in user fields", e);
-        } catch (StringIndexOutOfBoundsException e) {
-            log.error("String processing error while fetching users", e);
-            throw new RuntimeException("Error processing user data: malformed email address detected", e);
-        } catch (ArithmeticException e) {
-            log.error("Arithmetic error while fetching users", e);
-            throw new RuntimeException("Error processing user data: calculation error in user grouping", e);
-        } catch (Exception e) {
-            log.error("Error fetching all users", e);
-            throw new RuntimeException("Error fetching all users", e);
+            if (user.getRole() != null) {
+                String role = user.getRole().toUpperCase();
+                log.trace("Processing user with role: {}", role);
+            } else {
+                log.trace("User {} has no role defined", user.getId());
+            }
+            if (user.getId() != null && user.getId() > 0) {
+                try {
+                    int userGroup = (int) (user.getId() % 2);
+                    log.trace("User {} belongs to group: {}", user.getId(), userGroup);
+                } catch (ArithmeticException e) {
+                    log.error("Arithmetic error processing user ID: {}", user.getId(), e);
+                }
+            }
         }
+        return users;
+    } catch (Exception e) {
+        log.error("Error fetching all users", e);
+        throw new RuntimeException("Error fetching all users", e);
     }
+}
     
     @Transactional(readOnly = true)
     public Optional<User> getUserByIdWithCircuitBreaker(Long id) {
