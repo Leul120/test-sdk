@@ -89,45 +89,34 @@ public List<User> getAllUsers() {
     }
     
     @Transactional
-    public User createUser(User user) {
-        log.info("Creating new user: {}", user.getEmail());
-        
-        // Potential runtime error: null pointer if user is null
-        if (user == null) {
-            throw new IllegalArgumentException("User cannot be null");
-        }
-        
-        // Potential runtime error: null pointer in email check
-        if (user.getEmail() == null) {
-            throw new IllegalArgumentException("User email cannot be null");
-        }
-        
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("User with email " + user.getEmail() + " already exists");
-        }
-        
-        // Validate role
-        if (!user.isValidRole()) {
-            throw new IllegalArgumentException("Invalid role: " + user.getRole());
-        }
-        
-        // Potential runtime error: null pointer in date operations (system clock issues)
-        try {
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            user.setCreatedAt(now);
-            user.setUpdatedAt(now);
-        } catch (Exception e) {
-            log.error("Error setting timestamps", e);
-            throw new RuntimeException("Failed to set creation timestamps", e);
-        }
-        
-        user.setCreatedBy("system");
-        user.setUpdatedBy("system");
-        
-        User savedUser = userRepository.save(user);
-        log.info("Successfully created user with id: {}", savedUser.getId());
-        return savedUser;
+public User createUser(User user) {
+    log.info("Creating new user");
+    if (user == null) {
+        throw new IllegalArgumentException("User cannot be null");
     }
+    if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+        throw new IllegalArgumentException("User email cannot be null or empty");
+    }
+    if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+        throw new IllegalArgumentException("User with email " + user.getEmail() + " already exists");
+    }
+    if (user.getRole() == null || !user.isValidRole()) {
+        throw new IllegalArgumentException("Invalid or null role: " + user.getRole());
+    }
+    try {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+    } catch (Exception e) {
+        log.error("Error setting timestamps", e);
+        throw new RuntimeException("Failed to set creation timestamps", e);
+    }
+    user.setCreatedBy("system");
+    user.setUpdatedBy("system");
+    User savedUser = userRepository.save(user);
+    log.info("Successfully created user with id: {}", savedUser.getId());
+    return savedUser;
+}
     
     @Transactional
     public User updateUser(Long id, User userDetails) {
