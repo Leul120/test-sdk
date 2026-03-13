@@ -119,53 +119,47 @@ public User createUser(User user) {
 }
     
     @Transactional
-    public User updateUser(Long id, User userDetails) {
-        log.info("Updating user with id: {}", id);
-        
-        // Potential runtime error: null pointer in findById
-        User existingUser = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
-        
-        // Potential runtime error: null pointer in userDetails
-        if (userDetails == null) {
-            throw new IllegalArgumentException("User details cannot be null");
-        }
-        
-        // Update fields with potential null pointer issues
-        if (userDetails.getName() != null) {
-            existingUser.setName(userDetails.getName());
-        }
-        if (userDetails.getEmail() != null) {
-            existingUser.setEmail(userDetails.getEmail());
-        }
-        if (userDetails.getRole() != null) {
-            existingUser.setRole(userDetails.getRole());
-        }
-        if (userDetails.getPhone() != null) {
-            existingUser.setPhone(userDetails.getPhone());
-        }
-        if (userDetails.getDepartment() != null) {
-            existingUser.setDepartment(userDetails.getDepartment());
-        }
-        
-        // Potential runtime error: null pointer in date operations
-        try {
-            existingUser.setUpdatedAt(java.time.LocalDateTime.now());
-        } catch (Exception e) {
-            log.error("Error setting update timestamp", e);
-            throw new RuntimeException("Failed to set update timestamp");
-        }
-        existingUser.setUpdatedBy("system");
-        
-        // Validate role
-        if (!existingUser.isValidRole()) {
-            throw new IllegalArgumentException("Invalid role: " + existingUser.getRole());
-        }
-        
-        User updatedUser = userRepository.save(existingUser);
-        log.info("Successfully updated user with id: {}", updatedUser.getId());
-        return updatedUser;
+public User updateUser(Long id, User userDetails) {
+    log.info("Updating user with id: {}", id);
+    if (id == null || id <= 0) {
+        throw new IllegalArgumentException("User ID must be a positive number");
     }
+    User existingUser = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    if (userDetails == null) {
+        throw new IllegalArgumentException("User details cannot be null");
+    }
+    if (userDetails.getName() != null) {
+        existingUser.setName(userDetails.getName());
+    }
+    if (userDetails.getEmail() != null) {
+        if (userRepository.findByEmail(userDetails.getEmail()).isPresent() && !userDetails.getEmail().equals(existingUser.getEmail())) {
+            throw new IllegalArgumentException("Email " + userDetails.getEmail() + " already exists");
+        }
+        existingUser.setEmail(userDetails.getEmail());
+    }
+    if (userDetails.getRole() != null) {
+        existingUser.setRole(userDetails.getRole());
+    }
+    if (userDetails.getPhone() != null) {
+        existingUser.setPhone(userDetails.getPhone());
+    }
+    if (userDetails.getDepartment() != null) {
+        existingUser.setDepartment(userDetails.getDepartment());
+    }
+    try {
+        existingUser.setUpdatedAt(java.time.LocalDateTime.now());
+    } catch (Exception e) {
+        log.error("Error setting update timestamp", e);
+        throw new RuntimeException("Failed to set update timestamp", e);
+    }
+    existingUser.setUpdatedBy("system");
+    if (!existingUser.isValidRole()) {
+        throw new IllegalArgumentException("Invalid role: " + existingUser.getRole());
+    }
+    User updatedUser = userRepository.save(existingUser);
+    log.info("Successfully updated user with id: {}", updatedUser.getId());
+    return updatedUser;
+}
     
     @Transactional
     public void deleteUser(Long id) {
