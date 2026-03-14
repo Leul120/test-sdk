@@ -447,50 +447,40 @@ public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats() {
         }
     }
 
-    /**
-     * Complex user analytics (may cause runtime errors)
-     */
+    
     @GetMapping("/users/analytics")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAnalytics(
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
-        try {
-            log.info("Generating user analytics from {} to {}", startDate, endDate);
-            // Potential runtime error: date parsing error
-            if (startDate != null && endDate != null) {
-                // Simulate date parsing that could fail
-                if (startDate.equals("invalid") || endDate.equals("invalid")) {
-                    throw new IllegalArgumentException("Invalid date format");
-                }
+public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAnalytics(@RequestParam(required = false) String startDate, @RequestParam(required = false) String endDate) {
+    try {
+        log.info("Generating user analytics from {} to {}", startDate, endDate);
+        if (startDate != null && endDate != null) {
+            if (startDate.trim().isEmpty() || endDate.trim().isEmpty()) {
+                throw new IllegalArgumentException("Date parameters cannot be empty");
             }
-            List<User> allUsers = userService.getAllUsers();
-            // Potential runtime error: division by zero
-            double totalUsers = allUsers.size();
-            if (totalUsers == 0) {
-                throw new IllegalStateException("No users found for analytics");
-            }
-            // Potential runtime error: null pointer in stream operations
-            Map<String, Long> roleDistribution = allUsers.stream().filter(user -> user.getRole() != null).collect(Collectors.groupingBy(User::getRole, Collectors.counting()));
-            Map<String, Long> departmentDistribution = allUsers.stream().filter(user -> user.getDepartment() != null).collect(Collectors.groupingBy(User::getDepartment, Collectors.counting()));
-            // Potential runtime error: arithmetic exception
-            long activeUsers = allUsers.stream().filter(user -> user.getActive() != null && user.getActive()).count();
-            double activePercentage = (activeUsers / totalUsers) * 100;
-            Map<String, Object> analytics = Map.of("totalUsers", totalUsers, "activeUsers", activeUsers, "activePercentage", activePercentage, "roleDistribution", roleDistribution, "departmentDistribution", departmentDistribution, "generatedAt", LocalDateTime.now().toString());
-            return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics generated successfully"));
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid date parameters for analytics", e);
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid date parameters: " + e.getMessage()));
-        } catch (IllegalStateException e) {
-            log.error("No data available for analytics", e);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ApiResponse.error("No data available for analytics: " + e.getMessage()));
-        } catch (ArithmeticException e) {
-            log.error("Arithmetic error during analytics calculation", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Calculation error: " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("Error generating analytics", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error generating analytics: " + e.getMessage()));
         }
+        List<User> allUsers = userService.getAllUsers();
+        long totalUsers = allUsers != null ? allUsers.size() : 0;
+        if (totalUsers == 0) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ApiResponse.error("No users available for analytics"));
+        }
+        Map<String, Long> roleDistribution = new HashMap<>();
+        Map<String, Long> departmentDistribution = new HashMap<>();
+        long activeUsers = 0;
+        if (allUsers != null) {
+            roleDistribution = allUsers.stream().filter( user -> user != null && user.getRole() != null).collect(Collectors.groupingBy(User::getRole, Collectors.counting()));
+            departmentDistribution = allUsers.stream().filter( user -> user != null && user.getDepartment() != null).collect(Collectors.groupingBy(User::getDepartment, Collectors.counting()));
+            activeUsers = allUsers.stream().filter( user -> user != null && user.getActive() != null && user.getActive()).count();
+        }
+        double activePercentage = totalUsers > 0 ? (double) activeUsers / totalUsers * 100 : 0.0;
+        Map<String, Object> analytics = Map.of("totalUsers", totalUsers, "activeUsers", activeUsers, "activePercentage", activePercentage, "roleDistribution", roleDistribution, "departmentDistribution", departmentDistribution, "generatedAt", LocalDateTime.now().toString());
+        return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics generated successfully"));
+    } catch (IllegalArgumentException e) {
+        log.error("Invalid date parameters for analytics", e);
+        return ResponseEntity.badRequest().body(ApiResponse.error("Invalid date parameters: " + e.getMessage()));
+    } catch (Exception e) {
+        log.error("Error generating analytics", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error generating analytics: " + e.getMessage()));
     }
+}
 
     // Helper methods for export functionality (may cause runtime errors)
     private String convertUsersToJson(List<User> users) {
