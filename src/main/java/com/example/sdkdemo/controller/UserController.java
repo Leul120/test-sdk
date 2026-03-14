@@ -188,46 +188,44 @@ public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUs
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
     }
 
-    /**
-     * Get user statistics
-     */
+    
     @GetMapping("/users/stats")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats() {
-        log.info("Fetching user statistics");
-        
-        try {
-            long totalUsers = userService.getUserCount();
-            List<User> adminUsers = userService.getUsersByRole("ADMIN");
-            List<User> regularUsers = userService.getUsersByRole("USER");
-            
-            // Potential runtime error: division by zero if no users exist
-            long activeAdminCount = adminUsers.stream().mapToLong(u -> u.getActive() ? 1 : 0).sum();
-            long activeUserCount = regularUsers.stream().mapToLong(u -> u.getActive() ? 1 : 0).sum();
-            long totalActive = activeAdminCount + activeUserCount;
-            
-            // Potential runtime error: null pointer in stream operations
-            double activePercentage = totalUsers > 0 ? (double) totalActive / totalUsers * 100 : 0.0;
-            
-            Map<String, Object> stats = Map.of(
-                    "totalUsers", totalUsers,
-                    "adminCount", adminUsers.size(),
-                    "userCount", regularUsers.size(),
-                    "activeUsers", totalActive,
-                    "activePercentage", activePercentage,
-                    "adminRatio", adminUsers.size() > 0 ? (double) regularUsers.size() / adminUsers.size() : 0.0
-            );
-            
-            return ResponseEntity.ok(ApiResponse.success(stats, "Statistics retrieved successfully"));
-        } catch (ArithmeticException e) {
-            log.error("Arithmetic error in user statistics", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error calculating statistics: " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("Error fetching user statistics", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error fetching user statistics"));
+public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats() {
+    log.info("Fetching user statistics");
+    try {
+        long totalUsers = userService.getUserCount();
+        List<User> adminUsers = userService.getUsersByRole("ADMIN");
+        List<User> regularUsers = userService.getUsersByRole("USER");
+        long activeAdminCount = 0;
+        long activeUserCount = 0;
+        long totalActive = 0;
+        double activePercentage = 0.0;
+        double adminRatio = 0.0;
+        if (adminUsers != null) {
+            activeAdminCount = adminUsers.stream().filter( u -> u != null && u.getActive() != null && u.getActive()).count();
         }
+        if (regularUsers != null) {
+            activeUserCount = regularUsers.stream().filter( u -> u != null && u.getActive() != null && u.getActive()).count();
+        }
+        totalActive = activeAdminCount + activeUserCount;
+        if (totalUsers > 0) {
+            activePercentage = (double) totalActive / totalUsers * 100;
+        }
+        if (adminUsers != null && !adminUsers.isEmpty()) {
+            long adminCount = adminUsers.size();
+            long userCount = regularUsers != null ? regularUsers.size() : 0;
+            adminRatio = (double) userCount / adminCount;
+        }
+        Map<String, Object> stats = Map.of("totalUsers", totalUsers, "adminCount", adminUsers != null ? adminUsers.size() : 0, "userCount", regularUsers != null ? regularUsers.size() : 0, "activeUsers", totalActive, "activePercentage", activePercentage, "adminRatio", adminRatio);
+        return ResponseEntity.ok(ApiResponse.success(stats, "Statistics retrieved successfully"));
+    } catch (ArithmeticException e) {
+        log.error("Arithmetic error in user statistics", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error calculating statistics: division by zero encountered"));
+    } catch (Exception e) {
+        log.error("Error fetching user statistics", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching user statistics: " + e.getMessage()));
     }
+}
 
     /**
      * Perform complex user operation (for testing error scenarios)
