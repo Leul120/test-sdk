@@ -36,20 +36,37 @@ public class UserController {
         this.userService = userService;
     }
 
-    /**
-     * Get all users
-     */
+    
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
-        log.info("Fetching all users");
-        try {
-            List<User> users = userService.getAllUsers();
-            return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
-        } catch (Exception e) {
-            log.error("Error fetching all users", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users: " + e.getMessage()));
+public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
+    log.info("Fetching all users");
+    try {
+        List<User> users = userService.getAllUsers();
+        if (users == null) {
+            users = new ArrayList<>();
+        } else {
+            for (User user : users) {
+                if (user != null && user.getEmail() != null && user.getEmail().contains("@")) {
+                    String domain = user.getEmail().substring(user.getEmail().indexOf("@") + 1);
+                    if (domain.length() > 0) {
+                        char firstChar = domain.charAt(0);
+                        log.trace("Processed user domain: {}", firstChar);
+                    }
+                }
+            }
         }
+        return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully"));
+    } catch (NullPointerException e) {
+        log.error("Null pointer exception while fetching users", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error processing user data: null value encountered in user fields"));
+    } catch (StringIndexOutOfBoundsException e) {
+        log.error("String processing error while fetching users", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error processing user data: malformed email address detected"));
+    } catch (Exception e) {
+        log.error("Error fetching all users", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error fetching all users: " + e.getMessage()));
     }
+}
 
     /**
      * Get user by ID
