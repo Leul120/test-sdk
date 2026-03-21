@@ -268,6 +268,9 @@ public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUs
     @GetMapping("/users/search")
     public ResponseEntity<ApiResponse<List<User>>> searchUsers(
             @RequestParam(required = false) String name,
+@GetMapping("/users/search")
+    public ResponseEntity<ApiResponse<List<User>>> searchUsers(
+            @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String department,
@@ -275,49 +278,17 @@ public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUs
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
-        log.info("Searching users with filters - name: {}, email: {}, role: {}, department: {}, active: {}, page: {}, size: {}", 
+        log.info("Searching users with filters - name: {}, email: {}, role: {}, department: {}, active: {}, page: {}, size: {}, ", 
                 name, email, role, department, active, page, size);
         
         try {
-            // Potential runtime error: division by zero if size is 0
+            // Validate size parameter
             if (size <= 0) {
-                throw new IllegalArgumentException("Page size must be a positive integer.");
+                return ResponseEntity.badRequest().body(ApiResponse.error("Page size must be a positive integer. Received: " + size));
             }
             if (page < 0) {
-                throw new IllegalArgumentException("Page number must be a non-negative integer.");
+                return ResponseEntity.badRequest().body(ApiResponse.error("Page number must be a non-negative integer. Received: " + page));
             }
-            
-            // Potential runtime error: null pointer if filters are not handled properly
-            List<User> users = userService.searchUsers(name, email, role, department, active);
-            
-            // Potential runtime error: array index out of bounds if page is invalid
-            int startIndex = page * size;
-            if (startIndex >= users.size()) {
-                return ResponseEntity.ok(ApiResponse.success(List.of(), "No users found for the given page"));
-            }
-            
-            int endIndex = Math.min(startIndex + size, users.size());
-            List<User> paginatedUsers = users.subList(startIndex, endIndex);
-            
-            // Potential runtime error: string operations on null values in results
-            for (User user : paginatedUsers) {
-                if (user.getEmail() != null && user.getEmail().contains("@test.com")) {
-                    log.debug("Found test user: {}", user.getId());
-                }
-            }
-            
-            return ResponseEntity.ok(ApiResponse.success(paginatedUsers, 
-                    String.format("Found %d users (page %d, showing %d results)", users.size(), page, paginatedUsers.size())));
-                
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid search parameters", e);
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid search parameters: " + e.getMessage()));
-        } catch (IndexOutOfBoundsException e) {
-            log.error("Index out of bounds during pagination", e);
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid page number: " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("Error during user search", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error during user search: " + e.getMessage()));
         }
     }
