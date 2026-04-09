@@ -21,8 +21,7 @@ public class RateLimitService {
         RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(key);
         
         try {
-            RateLimiter.Response response = rateLimiter.acquirePermission();
-            return response.isPermissionGranted();
+            return rateLimiter.acquirePermission();
         } catch (Exception e) {
             log.error("Error checking rate limit for client: {}", key, e);
             return false;

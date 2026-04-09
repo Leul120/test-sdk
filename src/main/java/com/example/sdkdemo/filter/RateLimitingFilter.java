@@ -36,7 +36,7 @@ public class RateLimitingFilter implements Filter {
         if (requestURI.startsWith("/api/")) {
             if (!rateLimitService.isAllowed(httpRequest)) {
                 log.warn("Rate limit exceeded for {} {}", method, requestURI);
-                httpResponse.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+                httpResponse.setStatus(429); // HTTP 429 Too Many Requests
                 httpResponse.setContentType("application/json");
                 
                 String errorResponse = "{\"error\":\"Rate limit exceeded. Please try again later.\"}";
