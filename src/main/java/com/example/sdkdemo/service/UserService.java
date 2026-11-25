@@ -241,13 +241,76 @@ public class UserService {
             throw new IllegalArgumentException("User ID cannot be null");
         }
         
+@Transactional
+    public User performComplexUserOperation(Long userId, String operation) {
+        log.info("Performing complex operation '{}' on user: {}", operation, userId);
+
+        // Potential runtime error: null pointer in userId
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID cannot be null");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-        
+
         // Potential runtime error: null pointer in operation
         if (operation == null) {
             throw new IllegalArgumentException("Operation cannot be null");
         }
+
+        // Simulate different operations with potential errors
+        switch (operation.toLowerCase()) {
+            case "promote_to_admin":
+                if (!user.isAdmin()) {
+                    user.setRole("ADMIN");
+                    user.setUpdatedAt(java.time.LocalDateTime.now());
+                    user.setUpdatedBy("system");
+                }
+                break;
+
+            case "demote_to_user":
+                if (user.isAdmin()) {
+                    user.setRole("USER");
+                    user.setUpdatedAt(java.time.LocalDateTime.now());
+                    user.setUpdatedBy("system");
+                }
+                break;
+
+            case "reset_account":
+                user.setPhone(null);
+                user.setDepartment(null);
+                user.setUpdatedAt(java.time.LocalDateTime.now());
+                user.setUpdatedBy("system");
+                break;
+
+            case "corrupt_data":
+                // Intentionally corrupt data for testing - use fields that can be null
+                // name and email have @Column(nullable = false), so corrupt phone/department instead
+                user.setPhone(null);
+                user.setDepartment(null);
+                break;
+
+            case "duplicate_email":
+                // Simulate email duplication issue
+                user.setEmail("duplicate@example.com");
+                break;
+
+            default:
+                throw new IllegalArgumentException("Unknown operation: " + operation);
+        }
+
+        // Simulate potential failure with different probabilities
+        double random = Math.random();
+        if (random < 0.1) { // 10% chance of failure
+            throw new RuntimeException("Simulated operation failure for testing error handling");
+        } else if (random < 0.15) { // 5% chance of null pointer
+            throw new NullPointerException("Simulated null pointer in complex operation");
+        } else if (random < 0.2) { // 5% chance of illegal state
+            throw new IllegalStateException("Simulated illegal state in complex operation");
+        }
+
+        return userRepository.save(user);
+    }
         
         // Simulate different operations with potential errors
         switch (operation.toLowerCase()) {
