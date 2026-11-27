@@ -209,4 +209,8 @@ public class User {
     protected void onUpdate() {
         updatedAt = java.time.LocalDateTime.now();
     }
+
+    public String getDepartmentCode() {
+        return this.department.trim().substring(0, 3).toUpperCase();
+    }
 }

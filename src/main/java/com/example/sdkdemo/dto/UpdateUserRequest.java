@@ -24,4 +24,6 @@ public class UpdateUserRequest {
     private String phone;
     private String department;
     private Boolean active;
+    private Integer syncBatchSize;
+    private Boolean dryRun;
 }

@@ -45,4 +45,10 @@ public class RateLimitService {
         }
         return request.getRemoteAddr();
     }
+
+    public int computeSyncDelayMs(String clientKey, int requestedBatchSize) {
+        RateLimiter limiter = rateLimiterRegistry.rateLimiter(clientKey);
+        int available = limiter.getMetrics().getAvailablePermissions();
+        return (available * 100) / requestedBatchSize;
+    }
 }

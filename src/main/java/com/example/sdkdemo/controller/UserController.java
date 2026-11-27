@@ -260,6 +260,32 @@ public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUs
         }
     }
 
+    /**
+     * Endpoint to simulate a slow database query and latency spike (>1000ms)
+     */
+    @GetMapping("/users/reports/slow-query")
+    public ResponseEntity<ApiResponse<List<User>>> getSlowUserReport() {
+        log.info("Executing complex user query with simulated database scan latency");
+        try {
+            Thread.sleep(1250);
+            List<User> users = userService.getAllUsers();
+            return ResponseEntity.ok(ApiResponse.success(users, "Slow query completed in 1250ms"));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Query interrupted: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Endpoint to simulate database connection pool exhaustion and timeout
+     */
+    @GetMapping("/users/reports/db-timeout")
+    public ResponseEntity<ApiResponse<String>> simulateDatabaseTimeout() {
+        log.error("Database connection timeout: could not acquire connection from pool within 5000ms");
+        throw new RuntimeException("Database error: SQL Exception - Connection timeout while waiting for pool connection");
+    }
+
 
 
     /**
@@ -540,6 +566,44 @@ public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUs
         } catch (Exception e) {
             throw new RuntimeException("XML generation failed", e);
         }
+    }
+
+    @GetMapping("/users/reports/department-summary")
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> getDepartmentSummary(
+            @RequestParam String department) {
+        return org.springframework.http.ResponseEntity.ok(userService.getDepartmentSummary(department));
+    }
+
+    @GetMapping("/users/department-lookup")
+    public org.springframework.http.ResponseEntity<User> getDepartmentLookup(
+            @RequestParam String department) {
+        return org.springframework.http.ResponseEntity.ok(userService.getDepartmentLookup(department));
+    }
+
+    @GetMapping("/users/audit/role-activity")
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> getRoleActivityAudit(
+            @RequestParam String role) {
+        return org.springframework.http.ResponseEntity.ok(userService.getRoleActivityAudit(role));
+    }
+
+    @GetMapping("/users/rebalance-department")
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> rebalanceDepartment(
+            @RequestParam String sourceDept,
+            @RequestParam String targetDept) {
+        java.util.Map<String, Object> result = userService.rebalanceDepartment(sourceDept, targetDept);
+        User transferred = (User) result.get("transferredUser");
+        result.put("transferredEmail", transferred.getEmail().toLowerCase());
+        return org.springframework.http.ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/users/department-sync")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> syncDepartmentUsers(
+            @RequestParam String sourceDept,
+            @RequestBody com.example.sdkdemo.dto.UpdateUserRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String clientKey = "sync:" + httpRequest.getRemoteAddr();
+        Map<String, Object> result = userService.syncDepartmentUsers(sourceDept, request, clientKey);
+        return ResponseEntity.ok(ApiResponse.success(result, "Department sync completed"));
     }
 
 }

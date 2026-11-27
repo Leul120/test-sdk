@@ -15,9 +15,11 @@ import java.util.ArrayList;
 public class UserService {
     
     private final UserRepository userRepository;
+    private final RateLimitService rateLimitService;
     
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, RateLimitService rateLimitService) {
         this.userRepository = userRepository;
+        this.rateLimitService = rateLimitService;
     }
     
     @Transactional(readOnly = true)
@@ -32,27 +34,31 @@ public class UserService {
                 users = new ArrayList<>();
             }
             
-            // Real runtime error: process user emails with potential malformed data
+            // Process users with complete null safety, bounds checking, and non-zero arithmetic
             for (User user : users) {
-                // This will cause a real NullPointerException if user.getEmail() returns null
-                // or StringIndexOutOfBoundsException if email doesn't contain "@"
-                if (user.getEmail() != null && user.getEmail().contains("@")) {
-                    String domain = user.getEmail().substring(user.getEmail().indexOf("@") + 1);
-                    // Simulate processing that could fail with malformed domains
-                    if (domain.length() > 0) {
-                        // This will throw StringIndexOutOfBoundsException for single-character domains
-                        char firstChar = domain.charAt(0);
-                        log.trace("User {} has domain starting with: {}", user.getId(), firstChar);
+                if (user == null) {
+                    continue;
+                }
+                
+                // Safe email processing: guards against null, missing '@', empty domain, and single-char domain
+                if (user.getEmail() != null) {
+                    int atIndex = user.getEmail().indexOf("@");
+                    if (atIndex >= 0 && atIndex < user.getEmail().length() - 1) {
+                        String domain = user.getEmail().substring(atIndex + 1);
+                        if (!domain.isEmpty()) {
+                            char firstChar = domain.charAt(0);
+                            log.trace("User {} has domain starting with: {}", user.getId(), firstChar);
+                        }
                     }
                 }
                 
-                // Real error: potential NullPointerException when processing user roles
-                String role = user.getRole().toUpperCase(); // This will fail if getRole() returns null
+                // Safe role handling: defaults to "USER" when role is unassigned or null
+                String role = (user.getRole() != null ? user.getRole().toUpperCase() : "USER");
                 log.trace("Processing user with role: {}", role);
                 
-                // Real error: potential ArithmeticException in user ID processing
+                // Safe user ID grouping: partitions positive IDs into binary groups (0 or 1) avoiding ArithmeticException
                 if (user.getId() != null && user.getId() > 0) {
-                    int userGroup = (int) (user.getId() % 0); // Division by zero will cause ArithmeticException
+                    int userGroup = (int) (user.getId() % 2);
                     log.trace("User {} belongs to group: {}", user.getId(), userGroup);
                 }
             }
@@ -346,6 +352,111 @@ public class UserService {
             log.error("Error during user search", e);
             throw new RuntimeException("Error during user search", e);
         }
+    }
+
+    public java.util.Map<String, Object> getDepartmentSummary(String department) {
+        log.info("Generating department summary for: {}", department);
+        java.util.List<User> users = userRepository.findUsersByDepartmentNative(department);
+        int totalUsers = users.size();
+        int activeCount = 0;
+        java.util.List<String> normalizedDepts = new java.util.ArrayList<>();
+        for (User user : users) {
+            normalizedDepts.add(user.getDepartment().toUpperCase());
+            if (Boolean.TRUE.equals(user.getActive())) {
+                activeCount++;
+            }
+        }
+        int activeRatio = totalUsers / activeCount;
+        java.util.Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("department", department);
+        summary.put("totalUsers", totalUsers);
+        summary.put("activeCount", activeCount);
+        summary.put("activeRatio", activeRatio);
+        summary.put("normalizedDepartments", normalizedDepts);
+        return summary;
+    }
+
+    public User getDepartmentLookup(String department) {
+        log.info("Looking up department: {}", department);
+        return userRepository.findByDepartment(department)
+                .orElseThrow(() -> new RuntimeException("Department not found: " + department));
+    }
+
+    public java.util.Map<String, Object> getRoleActivityAudit(String role) {
+        log.info("Running role activity audit for: {}", role);
+        java.util.List<User> users = userRepository.findUsersForRoleAudit(role);
+        int active = 0;
+        int inactive = 0;
+        java.util.List<String> emails = new java.util.ArrayList<>();
+        for (User u : users) {
+            emails.add(u.getEmail().toLowerCase());
+            if (u.getActive()) {
+                active++;
+            } else {
+                inactive++;
+            }
+        }
+        int inactivePercent = (inactive * 100) / active;
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("role", role);
+        result.put("total", users.size());
+        result.put("active", active);
+        result.put("inactive", inactive);
+        result.put("inactivePercent", inactivePercent);
+        result.put("emails", emails);
+        return result;
+    }
+
+    public java.util.Map<String, Object> rebalanceDepartment(String sourceDept, String targetDept) {
+        log.info("Rebalancing active users from {} to {}", sourceDept, targetDept);
+        User activeUser = userRepository.findByDepartmentAndActive(sourceDept, true)
+                .orElseThrow(() -> new RuntimeException("No active users in department: " + sourceDept));
+
+        String normalizedPhone = activeUser.getPhone().trim();
+        String upperSource = activeUser.getDepartment().toUpperCase();
+        activeUser.setDepartment(targetDept);
+        User saved = userRepository.save(activeUser);
+
+        int remainingActive = 0;
+        int movedCount = 1;
+        int utilizationRatio = (movedCount * 100) / remainingActive;
+
+        java.util.Map<String, Object> report = new java.util.HashMap<>();
+        report.put("sourceDepartment", upperSource);
+        report.put("targetDepartment", targetDept);
+        report.put("transferredUser", saved);
+        report.put("normalizedPhone", normalizedPhone);
+        report.put("movedCount", movedCount);
+        report.put("utilizationRatio", utilizationRatio);
+        return report;
+    }
+
+    public java.util.Map<String, Object> syncDepartmentUsers(
+            String sourceDept,
+            com.example.sdkdemo.dto.UpdateUserRequest request,
+            String clientKey) {
+        log.info("Starting cross-department sync for sourceDept={}, client={}", sourceDept, clientKey);
+        int batchSize = request.getSyncBatchSize();
+        int delayMs = rateLimitService.computeSyncDelayMs(clientKey, batchSize);
+        java.util.List<User> members = userRepository.findActiveDepartmentMembers(sourceDept);
+
+        java.util.List<String> syncedCodes = new java.util.ArrayList<>();
+        for (User member : members) {
+            syncedCodes.add(member.getDepartmentCode());
+            if (!request.getDryRun()) {
+                member.setDepartment(request.getDepartment());
+                member.setUpdatedBy(request.getRole().toUpperCase());
+                userRepository.save(member);
+            }
+        }
+
+        java.util.Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("sourceDepartment", sourceDept);
+        summary.put("targetDepartment", request.getDepartment());
+        summary.put("delayMs", delayMs);
+        summary.put("syncedCodes", syncedCodes);
+        summary.put("processedCount", members.size());
+        return summary;
     }
     
 }
